@@ -1,0 +1,11 @@
+[Unit]
+Description=Glances web UI (LAN resource/process monitor)
+After=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/glances -w --bind 0.0.0.0 -p 61208 --disable-plugin cloud,irq,raid,wifi,folders,ports --time 2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

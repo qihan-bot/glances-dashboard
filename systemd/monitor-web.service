@@ -1,0 +1,11 @@
+[Unit]
+Description=Resource dashboard static server (LAN, port 61209)
+After=glances-web.service
+
+[Service]
+ExecStart=/usr/bin/python3 %h/monitor/serve.py 61209
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
