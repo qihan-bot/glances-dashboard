@@ -14,6 +14,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import ec
+import fan
 import power
 import smart
 import spd
@@ -206,7 +207,8 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/sensors.json":
             storage = smart.collector.snapshot()
-            body = json.dumps({"sensors": sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage), "storage": storage}).encode()
+            body = json.dumps({"sensors": sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage),
+                               "fans": fan.fans(), "storage": storage}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")

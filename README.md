@@ -285,6 +285,36 @@ at i2c-0 0x50/0x51 with 35.75/32.5 degrees and module limits high 55, critical 8
 Hosts with soldered LPDDR5 have no SPD hub, so the setup tool finds nothing there and
 they stay unconfigured.
 
+## Fan duty and tachometer (optional, ITE EC)
+
+The ACPI EC space of the MECHREVO F7BSC holds no fan data, but its ITE IT5571
+embedded controller exposes internal RAM through the Super I/O I2EC indirect
+interface (ports 0x2E/0x2F; chip ID register reads 0x5571 without an enter key).
+`fan.py` doubles as the root-only helper `/usr/local/sbin/monitor-fan-i2ec`
+installed by `sudo python3 tools/setup_fan.py --user USER`; it verifies the chip
+ID, then reads the PWM module: CTR (0x1801), DCR1/DCR2 (0x1803/0x1804) and the
+F1/F2 tachometer counters (0x181E–0x1821). Only reads are issued; the data
+register is never written, so EC RAM and fan control are untouched. Enable with
+`MONITOR_FAN_I2EC=1` in the `monitor-web.service` user override. Duty is
+DCR/(CTR+1); the dashboard charts it and lists the raw tachometer count. RPM is
+shown only after `MONITOR_FAN_TACH_HZ` is set from a calibration (RPM = 60 × Hz /
+(2 × count)), because the tachometer clock of this chip is not verified; the
+BIOS hardware monitor or the fan's rated maximum speed at 100 % duty gives the
+reference. A saturated counter (≥ 0xFFF0) is reported as no tachometer signal.
+
+Evidence (2026-09-12, 90 samples over a 60 s twelve-thread load step): DCR1 rose
+from 22 to 68 (34 % → 100 % of CTR 63) with r = 0.99 against the EC CPU
+temperature, and the fan 1 counter fell from about 1150 to 483 (r = −0.98 against
+DCR1). Channel 2 held DCR2 = 57 and a counter near 1068 throughout, consistent
+with a fixed-speed second fan or an unused PWM channel; its physical target is
+unverified. The same scan located the ACPI EC space at internal address 0x0300
+and the two board thermistors as 10-bit ADC readings (0x190D/0x190E and
+0x1939/0x193A) that the firmware converts to the bytes reported as 0x04/0x05.
+Under separate CPU, NVMe and memory-bandwidth loads, both thermistors followed
+the SoC temperature (r = 0.96 / 0.93, lag 10–20 s) and ignored an 8 degree NVMe
+rise and DIMM heating, so they sit in the SoC thermal path on the board; the exact
+positions still need a visual check.
+
 Every hwmon temperature includes its driver, sysfs path, raw channel label, UTC
 sample time, and quality. Failed/malformed reads, disabled channels, and asserted
 `tempN_fault` flags produce unavailable observations without failing other channels.

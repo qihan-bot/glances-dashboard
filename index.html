@@ -344,6 +344,12 @@ footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid 
   <p id="smartTime" class="smart-meta"></p>
 </section>
 
+<section id="fanPanel" class="card ptable" style="margin-bottom:12px" hidden aria-label="风扇">
+  <div class="smart-heading"><h2>风扇 · EC PWM 与测速</h2><b id="fanState" class="smart-state"></b></div>
+  <div id="fanValues" class="smart-values"></div>
+  <p id="fanNote" class="smart-meta"></p>
+</section>
+
 <div class="section-label" id="processes"><b>04 / PROCESSES</b><h2>进程与任务</h2></div>
 <div class="procs">
   <div class="card"><h2 style="font-size:14px;margin:0 0 8px">CPU 占用最高的进程 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">按 PID · CPU%</span></h2><div class="bars" id="topcpu"></div></div>
@@ -387,6 +393,7 @@ const UNITS = {
   bytes: { axis: v => fmtBytes(v), tip: fmtRate, min: 10240 },
   temp:  { axis: v => v.toFixed(0) + '°', tip: v => v.toFixed(0) + ' °C', min: 60 },
   load:  { axis: v => v.toFixed(1), tip: v => v.toFixed(2), min: 1 },
+  rpm:   { axis: v => v.toFixed(0), tip: v => v.toFixed(0) + ' rpm', min: 1000 },
 };
 
 /* ---------- line chart ---------- */
@@ -587,6 +594,7 @@ ioChart.setSeries([{ label: '读', color: '--s1', get: s => diskOf(s).r }, { lab
 const loadChart = new LineChart(chartsEl, { title: '系统负载', unitLabel: '相对核心数', unit: 'load' });
 loadChart.setSeries([{ label: '1 分钟', color: '--s3', get: s => s.load1 }, { label: '5 分钟', color: '--s2', get: s => s.load5 }, { label: '15 分钟', color: '--s4', get: s => s.load15 }]);
 let sensorMeta = [], sensorKey = '';
+let fanMeta = [], fanKey = '', fanCharts = [];
 const tempCharts = [];
 let diskTempSelection = null, diskTempMode = 'multiple';
 const tmax = s => { let m = null; for (const k in s.temp) if (m == null || s.temp[k] > m) m = s.temp[k]; return m; };
@@ -692,6 +700,35 @@ function renderTempTable(cur) {
     drawSparkOn(cv, hist.slice(-60).map(s => s.temp[x.id]));
   }
 }
+function ensureFanCharts() {
+  const live = fanMeta.filter(f => f.duty != null || f.rpm != null);
+  const key = live.map(f => [f.id, f.rpm_status].join(':')).join();
+  if (key === fanKey) return; fanKey = key;
+  for (const c of fanCharts) { c.observer.disconnect(); c.card.remove(); } fanCharts.length = 0;
+  if (!live.length) return;
+  const duty = new LineChart(chartsEl, { title: '风扇 PWM 占空比', unitLabel: '%', unit: 'pct', yMax: 100 });
+  duty.setSeries(live.map((f, i) => ({ key: f.id, label: f.label, color: '--s' + (i + 1), get: s => s.fan?.[f.id]?.duty })));
+  fanCharts.push(duty);
+  const cal = live.filter(f => f.rpm_status === 'calibrated');
+  if (cal.length) {
+    const rpm = new LineChart(chartsEl, { title: '风扇转速', unitLabel: 'rpm · 按 MONITOR_FAN_TACH_HZ 校准', unit: 'rpm' });
+    rpm.setSeries(cal.map((f, i) => ({ key: f.id, label: f.label, color: '--s' + (i + 1), get: s => s.fan?.[f.id]?.rpm })));
+    fanCharts.push(rpm);
+  }
+}
+function renderFans() {
+  const panel = document.getElementById('fanPanel'); panel.hidden = !fanMeta.length;
+  if (!fanMeta.length) return;
+  const stale = fanMeta.some(f => f.stale || f.quality === 'unavailable');
+  document.getElementById('fanState').textContent = stale ? '未更新' : (fanMeta[0].chip ? `${fanMeta[0].chip} · I2EC 只读` : 'EC 只读');
+  const values = document.getElementById('fanValues'); values.textContent = '';
+  for (const f of fanMeta) {
+    const items = [[f.label + ' · 占空比', f.duty == null ? '–' : f.duty.toFixed(0) + '%' + (f.stale ? '（上次）' : '')],
+                   [f.label + (f.rpm_status === 'calibrated' ? ' · 转速' : ' · 转速计数（原始，越大越慢）'), f.rpm != null ? `${f.rpm} rpm` : f.tach_count != null ? String(f.tach_count) : '–']];
+    for (const [label, text] of items) { const cell = document.createElement('div'), k = document.createElement('span'), v = document.createElement('b'); k.textContent = label; v.textContent = text; cell.append(k, v); values.appendChild(cell); }
+  }
+  document.getElementById('fanNote').textContent = [...new Set(fanMeta.map(f => f.note).filter(Boolean))].join(' ') || '占空比 = EC PWM 寄存器 DCR/(CTR+1)；转速计数为测速脉冲周期计数。';
+}
 let storageLast = null;
 function renderStorage(value) {
   if (value?.enabled) storageLast = value;
@@ -743,6 +780,7 @@ function toSample(d, sens) {
   for (const n of d.network) s.net[n.interface_name] = { rx: n.bytes_recv_rate_per_sec || 0, tx: n.bytes_sent_rate_per_sec || 0 };
   for (const n of d.diskio) s.dsk[n.disk_name] = { r: n.read_bytes_rate_per_sec || 0, w: n.write_bytes_rate_per_sec || 0 };
   if (sens) { for (const n of sens) { if (!Number.isFinite(n.value) || ['unverified','unavailable'].includes(n.quality)) continue; if (n.unit === 'W') s.gpuW = n.value; else s.temp[n.id] = n.value; } }
+  s.fan = {}; for (const f of fanMeta) if (f.quality === 'reported' && !f.stale && f.duty != null) s.fan[f.id] = { duty: f.duty, rpm: f.rpm };
   return s;
 }
 
@@ -773,7 +811,7 @@ function render() {
     const groupMax = g => { const v = sensorMeta.filter(x => x.group === g).map(x => cur.temp[x.id]).filter(v => v != null); return v.length ? Math.max(...v) : null; };
     const bT = groupMax('board'), mT = groupMax('memory');
     const nv = sensorMeta.filter(x => (x.group === 'nvme' && /composite/.test(x.id)) || x.group === 'sata').map(x => cur.temp[x.id]).filter(v => v != null);
-    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`);
+    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`); const fz = fanMeta.find(f => f.quality === 'reported' && !f.stale && f.duty != null); if (fz) parts.push(fz.rpm != null ? `风扇 ${fz.duty.toFixed(0)}% · ${fz.rpm} rpm` : `风扇 ${fz.duty.toFixed(0)}%`);
     const main = cpuT ?? tmax(cur);
     fill('temp', { label: cpuT != null ? 'CPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
       value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? tmax(x) }); }
@@ -798,6 +836,7 @@ function render() {
   ensureTempCharts();
   for (const c of tempCharts) c.update(win);
   renderTempTable(cur);
+  ensureFanCharts(); for (const c of fanCharts) c.update(win); renderFans();
   // processes
   renderTop(d); renderTable(d);
 }
@@ -875,6 +914,9 @@ async function poll() {
         return x.value == null && old ? {...x,value:old.value,sampled_at:old.sampled_at,stale:true} : x;
       });
     } else sensorMeta = sensorMeta.map(x => ({...x, stale:true}));
+    const fansJ = Array.isArray(sj?.fans) ? sj.fans : null;
+    if (fansJ) { const prevF = new Map(fanMeta.map(f => [f.id, f])); fanMeta = fansJ.map(f => { const old = prevF.get(f.id); return f.duty == null && old ? {...old, quality:f.quality, note:f.note || old.note, stale:true} : f; }); }
+    else fanMeta = fanMeta.map(f => ({...f, stale:true}));
     document.getElementById('sensorStatus').textContent = sens ? (sens.some(x => x.group === 'board') ? '主板测点通道已发现，位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
     if (sens && sensorMeta.some(x => x.quality === 'unavailable')) document.getElementById('sensorStatus').textContent += ' · 部分传感器未更新';
     last = d;
@@ -960,7 +1002,7 @@ function switchHost(h) {
   hostGeneration++; clearTimeout(pollTimer); pollController?.abort();
   current = h; writeSetting('host_sel', hostKey(h)); markFleet();
   diskTempSelection = null; diskTempMode = 'multiple';
-  hist.length = 0; last = null; iface = null; disk = null; sensorMeta = []; sensorKey = '';
+  hist.length = 0; last = null; iface = null; disk = null; sensorMeta = []; sensorKey = ''; for (const c of fanCharts) { c.observer.disconnect(); c.card.remove(); } fanCharts.length = 0; fanMeta = []; fanKey = '';
   renderStorage({enabled:false});
   document.getElementById('hostname').textContent = h.name; document.getElementById('sysmeta').textContent = h.addr;
   statEl.textContent = '连接中…'; dot.classList.add('off'); page.classList.remove('stale');
