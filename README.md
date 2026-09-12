@@ -206,7 +206,7 @@ exact legacy rule for the same account/device, and rejects unrelated rules.
 Set `MONITOR_SMART_TEMPERATURE_UNVERIFIED=1` on a host after investigating an
 unreliable temperature report. The health card retains the original value with
 an explicit unverified label, but no new temperature curve samples are produced.
-This is configured for the EAGET SSD 128GB / U0115A0 on N100-8G-Backup: raw SMART
+This is configured for the EAGET SSD 128GB / U0115A0 on an N100 host: raw SMART
 checksums and ATA/SAT reads agree, but temperature stayed at 40 degrees across a
 power cycle and an 8 GiB direct read on 2026-09-11. The latter increased the
 standard read counter by 8 GiB plus 36 KiB of other reads; attribute 242 increased
@@ -223,7 +223,7 @@ ACPI thermal zones are diagnostic-only, labelled unverified, and excluded from
 temperature samples and charts. A readable firmware temperature alone does not
 identify a physical board measurement. Constant readings alone do not prove a
 sensor is fake; the UI states the uncertainty instead of inventing a correction.
-On 2026-09-12 the MECHREVO F7BSC host (.210) returned 20 degrees from `acpitz`
+On 2026-09-12 a MECHREVO F7BSC host returned 20 degrees from `acpitz`
 through six samples while CPU control temperature varied from 90.25 to 91.75 degrees.
 Its currently exposed hwmon devices provide no independently identified board sensor. Its board thermistors live in the
 embedded controller instead; see *Embedded controller temperatures* below.
@@ -251,7 +251,7 @@ EC is never written. The byte map is host-specific and must be established first
 4. Set `MONITOR_EC_TEMPS` in the `monitor-web.service` user override, reload the user
    manager, restart the service, and verify `/sensors.json`.
 
-MECHREVO F7BSC (.210, AMI BIOS 1.07, checked 2026-09-12): the DSDT declares the EC
+MECHREVO F7BSC (AMI BIOS 1.07, checked 2026-09-12): the DSDT declares the EC
 (`\_SB.PCI0.SBRG.EC0`) but names only one byte (`P3TL`, 0x61). `\_TZ.TZ01._TMP`
 stores 20.0 degrees and replaces it with `EC0.DIEH` only when `EC0.OKEC` exists,
 which this DSDT never defines, so the ACPI zone is a constant. Over a 300 s sample
@@ -280,10 +280,10 @@ configures nothing when no hub is found. Set `MONITOR_SPD_TEMPS=1` in the
 `monitor-web.service` user override to enable it; a disabled sensor, an
 out-of-range value, or a failed helper run reports unavailable for the modules seen
 last, and the memory chart keeps the last reading marked 未更新. Readings are cached
-for five seconds. On .210 (2026-09-12) the two Micron CT16G56C46S5 SODIMMs answered
+for five seconds. On that host (2026-09-12) the two Micron CT16G56C46S5 SODIMMs answered
 at i2c-0 0x50/0x51 with 35.75/32.5 degrees and module limits high 55, critical 85.
-The 家庭网关 (.135) and N100-8G-Backup (.243) hosts use soldered LPDDR5 with no SPD hub,
-so the setup tool found nothing there and they stay unconfigured.
+Hosts with soldered LPDDR5 have no SPD hub, so the setup tool finds nothing there and
+they stay unconfigured.
 
 Every hwmon temperature includes its driver, sysfs path, raw channel label, UTC
 sample time, and quality. Failed/malformed reads, disabled channels, and asserted
@@ -301,7 +301,7 @@ For a host with independently verified invalid inputs, set a comma-separated
 These settings affect dashboard presentation only and never write hardware registers.
 They are unset by default; do not exclude all constant or 27.8 degree readings globally.
 
-The N100-8G-Backup host was checked on 2026-09-11: ACPI `_TMP` has a 27.8 degree
+An N100 host with an IT8613E was checked on 2026-09-11: ACPI `_TMP` has a 27.8 degree
 fallback, IT8613E channel 3 reports roughly -50 degrees, and its temperature limits
 are invalid. Its override excludes `acpitz:temp1,it8613:temp3` and ignores `it8613`
 limits. Channel 1 changed with CPU cooling; channel 2 remained near 54 degrees

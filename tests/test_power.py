@@ -20,8 +20,8 @@ class PowerTests(unittest.TestCase):
         self.origin = f'http://127.0.0.1:{self.server.server_port}'
         self.cfg = {'access': 'lan', 'addr': '127.0.0.1', 'shutdown': True,
                     'hosts': [{'addr':'127.0.0.1', 'dport':self.server.server_port,
-                               'wake_enabled':True, 'mac':'04:d9:f5:f6:53:7f',
-                               'broadcast':'192.168.31.255'}]}
+                               'wake_enabled':True, 'mac':'02:00:00:00:00:29',
+                               'broadcast':'192.0.2.255'}]}
         self.config_patch = patch('power.config', return_value=self.cfg)
         self.config_patch.start()
         power.LAST_ACTION.clear()
@@ -107,7 +107,7 @@ class PowerTests(unittest.TestCase):
         packet = b'\xff'*6 + bytes.fromhex('04d9f5f6537f')*16
         sender = sock.return_value.__enter__.return_value
         self.assertEqual(sender.sendto.call_count,3)
-        sender.sendto.assert_called_with(packet,('192.168.31.255',9))
+        sender.sendto.assert_called_with(packet,('192.0.2.255',9))
 
     @patch('power.subprocess.run')
     def test_disabled_and_password_fail_closed(self, run):
