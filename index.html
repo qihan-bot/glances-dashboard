@@ -604,7 +604,9 @@ function ensureTempCharts() {
   const core = sensorMeta.filter(x => x.group === 'core');
   if (core.length) groups.push({ title: 'CPU · GPU · 设备温度', items: core.slice(0, 4), label: x => x.device.split(' · ')[0] });
   const board = sensorMeta.filter(x => x.group === 'board');
-  if (board.length) groups.push({ title: '主板芯片温度 · 测点位置未核实', items: board.slice(0, 4), label: x => x.label });
+  if (board.length) groups.push({ title: '主板温度 · 测点位置未核实', items: board.slice(0, 4), label: x => x.label });
+  const memory = sensorMeta.filter(x => x.group === 'memory');
+  if (memory.length) groups.push({ title: '内存温度 · SPD 温度传感器', items: memory.slice(0, 4), label: x => x.label });
   for (const gp of groups) {
     const c = new LineChart(chartsEl, { title: gp.title, unitLabel: '°C', unit: 'temp' });
     c.setSeries(gp.items.map((x, i) => ({ key: x.id, label: gp.label(x), color: '--s' + (i + 1), get: s => s.temp[x.id] })));
@@ -767,9 +769,11 @@ function render() {
   const lp = d.load.min1 / d.core.log * 100;
   fill('load', { label: '负载', hint: `${d.core.log} 逻辑核`, value: d.load.min1.toFixed(2),
     sub: `5 分钟 ${d.load.min5.toFixed(2)} · 15 分钟 ${d.load.min15.toFixed(2)} · 占核心 ${lp.toFixed(0)}% · ${status(lp)[1].slice(2)}`, spark: x => x.load1 });
-  { const cpuT = cur.temp['cpu.tctl'] ?? cur.temp['cpu.package_id_0'], gpuT = cur.temp['gpu.edge'], bT = cur.temp['board.temp1'];
+  { const cpuT = cur.temp['cpu.tctl'] ?? cur.temp['cpu.package_id_0'], gpuT = cur.temp['gpu.edge'];
+    const groupMax = g => { const v = sensorMeta.filter(x => x.group === g).map(x => cur.temp[x.id]).filter(v => v != null); return v.length ? Math.max(...v) : null; };
+    const bT = groupMax('board'), mT = groupMax('memory');
     const nv = sensorMeta.filter(x => (x.group === 'nvme' && /composite/.test(x.id)) || x.group === 'sata').map(x => cur.temp[x.id]).filter(v => v != null);
-    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`ACPI ${bT.toFixed(0)} °C`);
+    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`);
     const main = cpuT ?? tmax(cur);
     fill('temp', { label: cpuT != null ? 'CPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
       value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? tmax(x) }); }
@@ -871,7 +875,7 @@ async function poll() {
         return x.value == null && old ? {...x,value:old.value,sampled_at:old.sampled_at,stale:true} : x;
       });
     } else sensorMeta = sensorMeta.map(x => ({...x, stale:true}));
-    document.getElementById('sensorStatus').textContent = sens ? (sens.some(x => x.group === 'board') ? '主板芯片通道已发现，测点位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
+    document.getElementById('sensorStatus').textContent = sens ? (sens.some(x => x.group === 'board') ? '主板测点通道已发现，位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
     if (sens && sensorMeta.some(x => x.quality === 'unavailable')) document.getElementById('sensorStatus').textContent += ' · 部分传感器未更新';
     last = d;
     hist.push(toSample(d, sens)); while (hist.length > MAX_POINTS) hist.shift();

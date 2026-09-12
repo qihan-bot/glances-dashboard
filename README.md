@@ -225,7 +225,65 @@ identify a physical board measurement. Constant readings alone do not prove a
 sensor is fake; the UI states the uncertainty instead of inventing a correction.
 On 2026-09-12 the MECHREVO F7BSC host (.210) returned 20 degrees from `acpitz`
 through six samples while CPU control temperature varied from 90.25 to 91.75 degrees.
-Its currently exposed hwmon devices provide no independently identified board sensor.
+Its currently exposed hwmon devices provide no independently identified board sensor. Its board thermistors live in the
+embedded controller instead; see *Embedded controller temperatures* below.
+
+## Embedded controller temperatures (optional)
+
+Some boards expose no hwmon board sensor but keep thermistor readings in the ACPI
+embedded controller (EC, `PNP0C09`). `ec.py` reports the EC RAM bytes listed in
+`MONITOR_EC_TEMPS` (`offset:group:label`, comma separated; group `board` joins the
+board chart, `diagnostic` appears only in the table), read through one exact sudo
+command. Raw values outside 1–127 and failed reads are reported as unavailable, so
+the page keeps the last reading marked 未更新; no thresholds are inferred and the
+EC is never written. The byte map is host-specific and must be established first:
+
+1. `sudo python3 tools/probe_ec.py` copies the ACPI tables, loads `ec_sys` without
+   write support, and samples EC RAM next to the known hwmon readings for 90 s.
+   `--seconds 300 --interval 1` around a CPU load step separates CPU mirrors from
+   slow board thermistors.
+2. `python3 tools/ec_map.py DIR` (no root) lists named `EmbeddedControl` fields from
+   the ACPI tables, decodes constant `_TMP` returns, and ranks bytes by movement and
+   correlation with the references. A byte is a board temperature only when its
+   behaviour supports it; firmware that never reads a byte gives it no DSDT name.
+3. `sudo python3 tools/setup_ec.py --user USER` writes `/etc/modules-load.d/monitor-ec.conf`,
+   loads `ec_sys` read-only, and grants exactly `/usr/bin/cat /sys/kernel/debug/ec/ec0/io`.
+4. Set `MONITOR_EC_TEMPS` in the `monitor-web.service` user override, reload the user
+   manager, restart the service, and verify `/sensors.json`.
+
+MECHREVO F7BSC (.210, AMI BIOS 1.07, checked 2026-09-12): the DSDT declares the EC
+(`\_SB.PCI0.SBRG.EC0`) but names only one byte (`P3TL`, 0x61). `\_TZ.TZ01._TMP`
+stores 20.0 degrees and replaces it with `EC0.DIEH` only when `EC0.OKEC` exists,
+which this DSDT never defines, so the ACPI zone is a constant. Over a 300 s sample
+with a 100 s twelve-thread load step, byte 0x09 followed Tctl (44–92 degrees,
+r = 0.96, about 5 s lag); bytes 0x04 and 0x05 rose from 39/38 to 57/54 degrees,
+peaked at the end of the load, and decayed over about two minutes (r = 0.95 with
+each other, 0.78/0.58 with Tctl). They are not the DDR5 modules: the SPD5118 hubs at
+i2c-0 0x50/0x51 read 35.75/32.5 degrees at the same moment. No other byte moved;
+bytes 0x11–0x38 are constant tables that look like fan-curve settings, and no fan
+tachometer exists in the ACPI EC space. The physical locations of 0x04/0x05 remain
+unverified. The intended host map is
+`MONITOR_EC_TEMPS=0x04:board:主板热敏 1,0x05:board:主板热敏 2,0x09:diagnostic:CPU（EC 读数）`.
+A full 256-byte read takes about 115 ms; `ec.py` caches it for two seconds.
+
+## DDR5 module temperatures (optional)
+
+DDR5 modules carry an SPD5118 hub with a temperature sensor, but kernels before
+6.11 have no `spd5118` driver. `spd.py` doubles as a root-only helper: installed by
+`sudo python3 tools/setup_spd.py --user USER` as `/usr/local/sbin/monitor-spd-temps`
+(root-owned, granted through one exact sudo rule), it scans SMBus adapters for hubs
+at 0x50–0x57, checks the device type (MR0/MR1 = 0x51 0x18), and prints the current
+temperature (MR49/MR50) with the hardware high/critical limits (MR28, MR32) as JSON.
+Only SMBus reads are issued; the page register and EEPROM are never written, so the
+module part number is not read and slot assignment stays unverified. The setup tool
+configures nothing when no hub is found. Set `MONITOR_SPD_TEMPS=1` in the
+`monitor-web.service` user override to enable it; a disabled sensor, an
+out-of-range value, or a failed helper run reports unavailable for the modules seen
+last, and the memory chart keeps the last reading marked 未更新. Readings are cached
+for five seconds. On .210 (2026-09-12) the two Micron CT16G56C46S5 SODIMMs answered
+at i2c-0 0x50/0x51 with 35.75/32.5 degrees and module limits high 55, critical 85.
+The 家庭网关 (.135) and N100-8G-Backup (.243) hosts use soldered LPDDR5 with no SPD hub,
+so the setup tool found nothing there and they stay unconfigured.
 
 Every hwmon temperature includes its driver, sysfs path, raw channel label, UTC
 sample time, and quality. Failed/malformed reads, disabled channels, and asserted

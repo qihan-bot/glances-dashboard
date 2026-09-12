@@ -13,8 +13,10 @@ from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+import ec
 import power
 import smart
+import spd
 
 ROOT = Path(__file__).resolve().parent
 HWMON = Path("/sys/class/hwmon")
@@ -119,7 +121,7 @@ def sensors():
             if pw:
                 out.append({"id": "gpu.power", "device_id": "gpu", "device": f"GPU · {gpu_model(hw)}", "group": "power",
                             "label": "功耗", "value": int(pw) / 1e6, "unit": "W"})
-    order = {"cpu": 0, "gpu": 1, "board": 2, "wifi": 3}
+    order = {"cpu": 0, "gpu": 1, "board": 2, "ec": 2, "wifi": 3}
     out.sort(key=lambda x: (order.get(x["device_id"], 10), x["device_id"]))
     return out
 
@@ -204,7 +206,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/sensors.json":
             storage = smart.collector.snapshot()
-            body = json.dumps({"sensors": sensors() + smart.temperature_sensors(storage), "storage": storage}).encode()
+            body = json.dumps({"sensors": sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage), "storage": storage}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")
