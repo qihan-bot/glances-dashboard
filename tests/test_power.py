@@ -104,7 +104,7 @@ class PowerTests(unittest.TestCase):
     @patch('power.socket.socket')
     def test_exact_magic_packet(self, sock):
         power.send_wake(self.cfg['hosts'][0])
-        packet = b'\xff'*6 + bytes.fromhex('04d9f5f6537f')*16
+        packet = b'\xff'*6 + bytes.fromhex('020000000029')*16
         sender = sock.return_value.__enter__.return_value
         self.assertEqual(sender.sendto.call_count,3)
         sender.sendto.assert_called_with(packet,('192.0.2.255',9))
