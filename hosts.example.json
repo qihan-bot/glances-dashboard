@@ -1,0 +1,7 @@
+{
+  "_comment": "Optional. Built-in hosts shown in the dropdown for every client. Copy to hosts.json. Ports default to 61208 (Glances) and 61209 (dashboard).",
+  "hosts": [
+    { "name": "Desktop", "addr": "desktop.local" },
+    { "name": "NAS", "addr": "nas.local", "gport": 61208, "dport": 61209 }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "addr": "192.0.2.10",
+  "access": "lan",
+  "shutdown": true,
+  "reboot": true,
+  "hosts": [
+    {
+      "name": "Desktop",
+      "addr": "192.0.2.10",
+      "dport": 61209,
+      "mac": "02:00:00:00:00:10",
+      "broadcast": "192.0.2.255",
+      "wake_enabled": true,
+      "wake_note": "Use another online dashboard on this LAN to wake this machine."
+    }
+  ]
+}

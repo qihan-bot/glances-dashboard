@@ -1,0 +1,16 @@
+[Unit]
+Description=Restricted LAN Wake-on-LAN relay for resource dashboard
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/share/monitor-wol/wol_relay.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_INET
+
+[Install]
+WantedBy=default.target

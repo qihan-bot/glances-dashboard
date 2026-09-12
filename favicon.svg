@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2a78d6"/>
-  <polyline points="10,46 21,31 31,39 43,19 54,27" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="54" cy="27" r="6" fill="#ffffff"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>NEXUS Q</title><path fill="#0c121c" d="M12 2h40l10 10v40L52 62H12L2 52V12Z"/><path fill="none" stroke="#48f3d3" stroke-width="2" d="M20 7H9v11M44 57h11V46"/><path fill="none" stroke="#48f3d3" stroke-width="5" stroke-linejoin="bevel" d="M23 16h18l7 7v18l-7 7H23l-7-7V23Z"/><path fill="none" stroke="#c8f45b" stroke-width="5" d="m34 34 20 20"/><path fill="#f879c9" d="M27 26h10v4H27z"/></svg>

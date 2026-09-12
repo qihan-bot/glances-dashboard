@@ -3,32 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>资源监控</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#2a78d6">
+<title>NEXUS · 主机资源控制台</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=nexus">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=nexus">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=nexus">
+<meta name="theme-color" content="#080c14">
 <style>
 :root{
-  color-scheme:light;
-  --surface:#fcfcfb; --plane:#f9f9f7; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
-  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.04);
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
-  --track:#cde2fb; --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-}
-@media (prefers-color-scheme:dark){
-  :root:where(:not([data-theme=light])){
-    color-scheme:dark;
-    --surface:#1a1a19; --plane:#0d0d0d; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
-    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.05);
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --track:#184f95;
-  }
-}
-:root[data-theme=dark]{
   color-scheme:dark;
-  --surface:#1a1a19; --plane:#0d0d0d; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
-  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.05);
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --track:#184f95;
+  --surface:#101722; --plane:#080c14; --ink:#e8f1f6; --ink2:#abbac8; --muted:#7d90a6;
+  --grid:#203040; --axis:#395264; --border:#263748; --wash:rgba(78,237,210,.06);
+  --s1:#48f3d3; --s2:#f879c9; --s3:#c8f45b; --s4:#7ca6ff;
+  --track:#1a303c; --good:#48f3a3; --warn:#f1df69; --serious:#ffa66c; --critical:#ff6c87;
+  --accent:#c8f45b; --panel:#0c121c; --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+:root[data-theme=light]{
+  color-scheme:light;
+  --surface:#f5f9fc; --plane:#e8eef3; --ink:#102335; --ink2:#40576d; --muted:#587085;
+  --grid:#d5e0e9; --axis:#9aafbd; --border:#c1d1de; --wash:rgba(0,120,120,.06);
+  --s1:#007e78; --s2:#ad267e; --s3:#5b7918; --s4:#355ddb; --accent:#5b7918;
+  --track:#d6e5e9; --good:#117342; --warn:#956000; --serious:#b6500b; --critical:#c32349; --panel:#eaf1f6;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--plane);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -42,6 +36,11 @@ header .status{margin-left:auto;display:flex;align-items:center;gap:8px;color:va
 button,select,input{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
 button{cursor:pointer}
 button:hover{background:var(--wash)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.powerbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.powerbar .note{flex-basis:100%;color:var(--ink2);font-size:12px}
+.danger{color:var(--critical);border-color:var(--critical)}
+#powerPassword{width:100%;margin-top:8px}
 .filters{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 14px;color:var(--ink2)}
 .filters label{display:flex;gap:6px;align-items:center}
 .seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
@@ -68,6 +67,21 @@ button:hover{background:var(--wash)}
 .st{font-size:12px;color:var(--ink2)}
 .st b{font-weight:600}
 .st.good b{color:var(--good)}.st.warn b{color:var(--ink2)}.st.serious b{color:var(--serious)}.st.critical b{color:var(--critical)}
+.hostpick{display:flex;gap:6px;align-items:center;color:var(--ink2);font-size:13px}
+#host{font-weight:600;max-width:200px}
+#hostmgr{font-size:12px;padding:3px 8px}
+header h1{order:-1}
+.modal[hidden]{display:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:20}
+.modal .box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;width:min(560px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal h3{margin:0 0 8px;font-size:16px}
+.modal .muted{color:var(--muted);font-size:12px;margin:0 0 10px;line-height:1.5}
+.modal code{background:var(--wash);padding:1px 4px;border-radius:4px}
+.modal textarea{width:100%;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
+.modal #builtins{font-size:12px;color:var(--ink2);margin-bottom:10px}
+.modal #builtins .h{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--grid)}
+.modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.modal #hostSave{background:var(--s1);color:#fff;border-color:transparent}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:12px;margin-bottom:14px}
 .chart h2{font-size:14px;font-weight:600;margin:0 0 2px;display:flex;align-items:baseline;gap:10px}
 .chart h2 .u{color:var(--muted);font-weight:400;font-size:12px}
@@ -114,25 +128,197 @@ table.temps canvas{width:120px;height:22px;display:block;margin-left:auto}
 table.temps td.dev{color:var(--ink)}
 table.temps tr.first td{border-top:1px solid var(--axis)}
 footer{color:var(--muted);font-size:12px;margin-top:18px}
+
+/* NEXUS console */
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{background:var(--plane);background-image:radial-gradient(ellipse at 70% 0,rgba(39,99,120,.13),transparent 50%),linear-gradient(var(--wash) 1px,transparent 1px),linear-gradient(90deg,var(--wash) 1px,transparent 1px);background-size:auto,64px 64px,64px 64px;font-size:13px}
+body::before{content:"";position:fixed;left:88px;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--s1),var(--s2),transparent);z-index:10}
+a{color:inherit;text-decoration:none}
+button,select,input{border-radius:3px;padding:8px 11px;border-color:var(--border);font-size:12px;min-height:34px}
+button{transition:background .18s,border-color .18s,color .18s;touch-action:manipulation}
+button:hover:not(:disabled){border-color:var(--s1);color:var(--s1);background:var(--wash)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--s1);outline-offset:4px}
+button:disabled{opacity:.4}
+input[type=checkbox]{accent-color:var(--s1);min-height:unset}
+.rail{position:fixed;inset:0 auto 0 0;width:88px;background:var(--panel);border-right:1px solid var(--border);display:flex;align-items:center;flex-direction:column;z-index:12;padding:22px 10px;gap:14px}
+.rail-logo{display:block;width:48px;height:48px;margin-bottom:25px}
+.rail nav{display:flex;flex-direction:column;gap:12px;width:100%}
+.rail nav a{display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 0;font-size:10px;letter-spacing:1px;color:var(--muted);border-left:2px solid transparent}
+.rail nav a b{font:16px var(--mono);font-weight:400;letter-spacing:0}
+.rail nav a:hover,.rail nav a.on{color:var(--s1);background:var(--wash);border-color:var(--s1)}
+.rail-foot{margin-top:auto;writing-mode:vertical-rl;color:var(--muted);font:10px var(--mono);letter-spacing:3px}
+.page{max-width:1760px;margin:0 auto 0 88px;padding:0 30px 36px}
+.masthead{height:85px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);gap:20px}
+.wordmark{display:flex;align-items:center;gap:14px}.mobile-mark{display:none}
+.wordmark .brand{font:700 25px var(--mono);letter-spacing:5px}
+.wordmark .brand em{color:var(--s1);font-style:normal}
+.wordmark .subbrand{border-left:1px solid var(--axis);padding-left:14px;color:var(--muted);font:10px/1.8 var(--mono);letter-spacing:1px}
+.mast-status{display:flex;align-items:center;gap:18px;color:var(--muted);font:11px var(--mono)}
+#consoleClock{color:var(--ink2);font:12px var(--mono)}
+.link-label{display:flex;gap:7px;align-items:center;font-size:10px;letter-spacing:1px}
+.link-label i{width:5px;height:5px;background:var(--s1);display:inline-block;box-shadow:0 0 10px #48f3d355}
+.section-label{display:flex;align-items:center;gap:12px;margin:24px 0 14px;font:10px var(--mono);letter-spacing:1.4px;color:var(--muted)}
+.section-label::after{content:"";height:1px;background:var(--border);flex:1}
+.section-label b{color:var(--s1);font-weight:400}
+.section-label h2{font:500 13px system-ui,sans-serif;margin:0;color:var(--ink2);letter-spacing:1px}
+.fleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:18px 0}
+.node-card{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;text-align:left;min-width:0;min-height:65px;padding:12px 16px;background:var(--panel);border:1px solid var(--border);position:relative}
+.node-card.on{border-color:var(--s1);background:var(--wash);box-shadow:inset 3px 0 var(--s1)}
+.node-number{font:10px var(--mono);color:var(--muted);border:1px solid var(--border);padding:5px}
+.node-copy{min-width:0}.node-copy strong{font-size:12px;font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node-copy small{display:block;margin-top:5px;color:var(--muted);font:10px var(--mono);letter-spacing:.5px}
+.node-state{font:9px var(--mono);letter-spacing:1px;color:var(--muted)}
+.node-card.on .node-state{color:var(--s1)}
+.command-deck{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,1fr);border:1px solid var(--border);background:linear-gradient(115deg,var(--surface),var(--panel));position:relative;margin:0 0 20px}
+.command-deck::before,.card::before{content:"";position:absolute;top:-1px;left:-1px;width:15px;height:15px;border-left:2px solid var(--s1);border-top:2px solid var(--s1);pointer-events:none;opacity:.65}
+.host-hero{display:block;min-width:0;margin:0;padding:23px 25px 22px;position:relative}
+.hero-kicker{font:10px var(--mono);color:var(--s1);letter-spacing:2px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.hero-kicker .hero-index{color:var(--muted)}
+header h1{font:600 clamp(22px,2.8vw,38px)/1.12 var(--mono);letter-spacing:-1px;margin:0 0 12px;overflow-wrap:anywhere}
+header .meta{font-size:11px;line-height:1.8;display:block;max-width:740px;color:var(--muted)}
+.host-tools{display:flex;gap:9px;align-items:center;margin-top:16px;flex-wrap:wrap}
+.hostpick{font:10px var(--mono);color:var(--muted);gap:10px}
+#host{max-width:260px;font:11px var(--mono);font-weight:400}
+#hostmgr{font-size:11px;padding:8px 12px}
+header .status{margin-left:auto;font:10px var(--mono);gap:7px;display:flex}
+.dot{width:6px;height:6px;box-shadow:0 0 10px #48f3a344}
+.dot.off{box-shadow:none}
+.powerbar{margin:0;padding:24px;border-left:1px solid var(--border);align-content:center;gap:9px;position:relative;overflow:hidden}
+.powerbar::after{content:"//";position:absolute;top:15px;right:20px;font:28px var(--mono);color:var(--border);pointer-events:none}
+.power-heading{flex-basis:100%;font:10px var(--mono);letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+.power-heading b{color:var(--accent);font-weight:400;margin-right:10px}
+#wakeBtn{background:var(--accent);border-color:var(--accent);color:var(--plane);font-weight:700;padding:9px 22px}
+#wakeBtn:hover:not(:disabled){background:var(--s1);border-color:var(--s1);color:var(--plane);box-shadow:0 0 18px #48f3d322}
+#shutdownBtn{color:var(--critical);border-color:color-mix(in srgb,var(--critical) 35%,var(--border));background:transparent}
+.powerbar .note{font-size:10px;line-height:1.8;color:var(--muted);margin-top:8px;max-width:500px;min-height:36px}
+.filters{margin:0 0 17px;padding:12px 15px;gap:14px 24px;border:1px solid var(--border);background:var(--panel);font-size:10px}
+.filters label{gap:10px;flex-wrap:wrap}.filters select{max-width:200px;font:10px var(--mono)}
+.seg{border-radius:2px;border-color:var(--border)}.seg button{min-height:29px;padding:5px 10px;font:10px var(--mono)}
+.seg button.on{background:var(--s1);color:var(--plane)}
+.card{border:1px solid var(--border);border-radius:3px;background:var(--surface);padding:18px;position:relative}
+.tiles{gap:12px;margin-bottom:24px}.tile{min-height:164px;overflow:hidden;--tile-color:var(--s1)}
+.tile::before{border-color:var(--tile-color);width:8px;height:8px}.tile::after{content:attr(data-code);position:absolute;right:15px;bottom:13px;color:var(--muted);opacity:.3;font:9px var(--mono);letter-spacing:2px;pointer-events:none}
+.tile[data-code=MEM]{--tile-color:var(--s2)}.tile[data-code=LOAD],.tile[data-code=FS]{--tile-color:var(--s3)}.tile[data-code=TEMP],.tile[data-code=PROC]{--tile-color:var(--s4)}
+.tile .label{font:10px var(--mono);gap:8px;align-items:center}.tile .name{color:var(--tile-color);font-weight:500;white-space:nowrap}
+.tile .label .hint{font-size:9px;color:var(--muted)}
+.tile .value{font:500 36px/1.1 var(--mono);letter-spacing:-1.6px;margin:17px 0 8px;color:var(--ink)}
+.tile .value.two{flex-direction:column;gap:4px;margin:13px 0 8px;letter-spacing:-.5px}.tile .value.two>span{font-size:20px}
+.tile .sub{font-size:10px;line-height:1.65;color:var(--muted);position:relative;z-index:1}.tile .foot{padding-top:10px}
+.tile canvas{height:30px}.meter{height:4px;border-radius:0;background:var(--track)}.meter i{border-radius:0}
+.mrow{font-size:9px;gap:6px}.mrow .k{min-width:35px;max-width:70px;overflow:hidden;text-overflow:ellipsis}.mrow .st{min-width:50px;font-size:9px}.st b{font-weight:500}
+.charts{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;margin-bottom:26px}
+.chart{padding:20px 20px 12px;background:linear-gradient(155deg,var(--surface),var(--panel));min-width:0}
+.chart-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;min-width:0}
+.chart-index{font:9px var(--mono);color:var(--s1);padding:5px 6px;border:1px solid var(--border)}
+.chart h2{font-size:13px;letter-spacing:.3px;margin:0;font-weight:500;min-width:0}
+.chart h2 .u{font:9px var(--mono);color:var(--muted);white-space:nowrap}
+.chart-mode{margin-left:auto;font:9px var(--mono);color:var(--muted);letter-spacing:1px;white-space:nowrap}
+.legend{gap:8px 18px;min-height:26px;align-items:center;font:10px var(--mono);margin:0 0 9px;padding-left:2px;line-height:1.8}
+.legend span{gap:6px}.legend i{width:6px;height:6px;border-radius:1px}.legend b{color:var(--ink);font-weight:500;margin-left:3px;font-size:11px}
+.plot{height:232px}.chart:first-child .plot{height:232px}.plot canvas{touch-action:pan-y}
+.chart .tbl{font:10px var(--mono);padding-top:8px;margin-top:5px;border-top:1px solid var(--border)}
+.chart .tbl summary{display:list-item;list-style-position:inside;color:var(--muted)}
+.chart .tbl table{display:block;overflow:auto;max-width:100%;font-size:10px}
+.tip{border:1px solid var(--s1);border-radius:2px;background:var(--panel);font:11px var(--mono);box-shadow:0 6px 28px #0008;padding:11px 14px;z-index:25;max-width:calc(100vw - 20px)}
+.tip .t{font-size:10px;color:var(--s1);border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:6px}.tip .r{line-height:1.9}.tip .r i{width:6px;height:6px;border-radius:0}
+.ptable{margin-bottom:18px;overflow:auto}.ptable::before{border-color:var(--s4)}
+table.p{font:11px var(--mono)}table.p th{font-size:10px;color:var(--muted);padding:12px 10px;background:var(--surface)}
+table.p td{padding:9px 10px;border-color:var(--border)}table.p th.on{color:var(--s1)}table.p td.cmd{max-width:390px;font-size:10px}
+.ptable .bar{font-size:11px;gap:12px}.ptable input:not([type=checkbox]){width:300px;max-width:100%;font-size:11px}
+.procs{gap:16px;margin:0 0 20px}.procs .card h2{font-size:12px!important;font-weight:500}
+.bars .row{font:10px var(--mono);height:29px;grid-template-columns:130px 1fr 68px}.bars .b{height:7px}.bars .b i{border-radius:0;background:linear-gradient(90deg,var(--track),var(--s1));min-width:1px}.procs .card:nth-child(2) .bars .b i{background:linear-gradient(90deg,var(--track),var(--s2))}
+.modal{background:rgba(1,5,12,.82);backdrop-filter:blur(9px);padding:16px;z-index:50}
+.modal .box{border:1px solid var(--s1);border-radius:3px;background:var(--surface);padding:28px;width:min(660px,100%);max-height:90dvh;overflow:auto;box-shadow:0 0 60px #48f3d310;position:relative}
+.modal .box::before{content:"NEXUS / CONTROL INTERFACE";display:block;color:var(--s1);font:9px var(--mono);letter-spacing:2px;margin-bottom:22px}
+.modal h3{font-size:22px;font-weight:500;letter-spacing:1px;margin-bottom:15px}.modal .muted{font-size:11px;line-height:1.9;color:var(--muted);margin-bottom:18px}
+.modal textarea{border-radius:2px;padding:16px;line-height:2;font:12px/2 var(--mono);border-color:var(--border);background:var(--panel)}
+.modal #builtins{border:1px solid var(--border);padding:5px 12px;margin-bottom:20px}.modal #builtins .h{font:11px var(--mono);gap:15px;padding:12px 0;line-height:1.6}.modal #builtins .h:last-child{border-bottom:0}.modal #builtins .h span:last-child{color:var(--s1)}
+.modal .row{margin-top:22px;gap:12px}.modal .row button{min-width:95px;padding:10px 16px}
+.modal #hostSave{background:var(--s1);color:var(--plane)}#powerTarget{font:15px var(--mono);padding:15px;border:1px solid var(--border);background:var(--panel);overflow-wrap:anywhere}
+#powerError,#hostError{color:var(--critical);font-size:12px}.modal:has(#powerTitle) .box{border-color:var(--critical)}
+footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid var(--border);padding-top:20px;margin-top:26px;color:var(--muted);font-size:10px;line-height:1.8}
+.footer-brand{color:var(--s1);font:10px var(--mono);letter-spacing:2px;white-space:nowrap}
+@media(min-width:1850px){.page{margin-left:auto;margin-right:auto;padding-left:110px}}
+@media(max-width:1150px){.command-deck{grid-template-columns:1fr}.powerbar{border-left:0;border-top:1px solid var(--border);padding:17px 24px}.power-heading{flex-basis:auto;margin:0 15px 0 0}.powerbar .note{min-height:unset}.host-hero{padding:20px 24px}.mast-status .link-label{display:none}.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}.tile .value{font-size:30px}.tile .label{flex-wrap:wrap}.tile .label .hint{max-width:100%}.charts{grid-template-columns:repeat(2,minmax(0,1fr))}.legend{gap:6px 10px}.chart{padding:16px}}
+@media(max-width:850px){.rail{width:64px;padding:18px 5px}.rail-logo{width:39px;height:39px}.page{margin-left:64px;padding:0 18px 28px}body::before{left:64px}.masthead{height:74px}.wordmark .brand{font-size:21px;letter-spacing:3px}.wordmark .subbrand{font-size:8px;padding-left:10px}.mast-status{gap:10px}#consoleClock{display:none}.fleet{gap:7px}.node-card{padding:11px;gap:9px;grid-template-columns:1fr auto}.node-number{display:none}.node-state{font-size:8px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{min-height:165px}.charts{grid-template-columns:minmax(0,1fr)}.chart .plot,.chart:first-child .plot{height:240px}.procs{grid-template-columns:1fr}.host-tools{gap:8px}.hostpick{flex:1}.hostpick select{max-width:220px}header .status{flex-basis:100%;margin:4px 0 0}.chart-head{flex-wrap:wrap}.chart-mode{font-size:8px}.filters{gap:12px}.filters select{max-width:150px}}
+@media(max-width:560px){.mobile-mark{display:block}.rail{display:none}.page{margin:0;padding:0 14px 28px}body::before{left:0}.masthead{height:68px}.wordmark .brand{font-size:21px;letter-spacing:2px}.wordmark .subbrand{font-size:8px}.wordmark{gap:9px}.mast-status{gap:0}#theme{font-size:9px;min-height:29px;padding:6px}.fleet{display:flex;overflow-x:auto;scroll-snap-type:x proximity;margin:14px 0;padding-bottom:3px}.node-card{min-width:180px;scroll-snap-align:start;min-height:60px}.host-hero{padding:19px 17px}.hero-kicker{font-size:9px;margin-bottom:10px}.host-hero h1{font-size:27px;letter-spacing:-1px}.host-hero .meta{font-size:10px}.host-tools{margin-top:14px}#host{max-width:210px;font-size:10px}.hostpick{font-size:9px}#hostmgr{font-size:10px}.powerbar{padding:16px;gap:8px}.power-heading{flex-basis:100%;margin:0 0 4px}.powerbar button{font-size:11px}.powerbar .note{font-size:9px;line-height:1.85}.section-label{margin:21px 0 12px;font-size:8px;letter-spacing:.8px;gap:8px}.section-label h2{font-size:12px}.filters{padding:11px;gap:11px}.filters label{font-size:10px}.seg button{padding:5px 9px;font-size:9px}.filters select{max-width:130px}.tiles{gap:9px}.tile{padding:13px;min-height:163px}.tile .value{font-size:29px;margin-top:15px;letter-spacing:-1px}.tile .value.two>span{font-size:16px}.tile .hint{font-size:8px!important}.tile .sub{font-size:9px;line-height:1.65}.mrow{font-size:8px;flex-wrap:wrap}.mrow .st{font-size:8px;min-width:40px}.mrow .meter{min-width:25px}.mrow .k{min-width:25px}.chart{padding:15px 11px 10px}.chart h2{font-size:12px}.chart h2 .u{font-size:8px}.chart-index{font-size:8px;padding:4px}.chart-head{gap:8px}.plot{height:225px!important}.legend{font-size:9px;gap:5px 12px}.legend b{font-size:10px}.modal .box{padding:23px 17px}.modal h3{font-size:19px}.modal #builtins .h{font-size:10px;flex-direction:column;gap:3px}.modal .row button{min-width:75px;padding:9px 12px}.ptable{padding:13px}.ptable .bar input:not([type=checkbox]){width:100%}.bars .row{grid-template-columns:105px 1fr 64px}.procs .card{padding:15px}footer{flex-direction:column;gap:8px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button{transition:none}}
+
+.disk-controls{margin:0 0 14px;padding:12px;border:1px solid var(--border);background:var(--panel)}
+.disk-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.disk-toolbar .seg button{font-size:10px;min-height:30px}.disk-all{font-size:10px;min-height:30px;padding:5px 12px}
+.disk-count{font:10px var(--mono);color:var(--muted);margin-left:auto}
+.disk-tags{display:flex;gap:8px;flex-wrap:wrap}
+.disk-tag{display:flex;gap:8px;align-items:center;min-width:0;max-width:100%;padding:8px 10px;text-align:left;border-left:3px solid var(--border);color:var(--muted);background:var(--surface)}
+.disk-tag b{font:500 10px var(--mono);color:var(--disk-color);white-space:nowrap}.disk-tag span{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.disk-tag.on{border-color:var(--disk-color);background:var(--wash);color:var(--ink)}.disk-tag:hover:not(:disabled){border-color:var(--disk-color);color:var(--ink)}
+.disk-hint{color:var(--muted);font-size:9px;line-height:1.7;margin:10px 0 0}
+@media(max-width:560px){.disk-controls{padding:10px}.disk-tags{gap:7px}.disk-tag{width:100%}.disk-toolbar{gap:7px}.disk-count{font-size:9px}}
+.smart-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.smart-heading h2{font-size:15px;margin:0}.smart-state{font-size:12px;color:var(--muted)}.smart-state[data-state=passed]{color:var(--s1)}.smart-state[data-state=warning]{color:var(--warn)}.smart-state[data-state=failed]{color:var(--critical)}.smart-meta{color:var(--muted);font-size:11px;line-height:1.8;margin:12px 0 0}.smart-values{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.smart-values>div{border-left:2px solid var(--border);padding:4px 12px}.smart-values span{display:block;color:var(--muted);font-size:10px;margin-bottom:7px}.smart-values b{font-size:18px;font-variant-numeric:tabular-nums}@media(max-width:700px){.smart-values{grid-template-columns:repeat(2,minmax(0,1fr))}.smart-values b{font-size:16px}}
 </style>
 </head>
 <body>
+<aside class="rail" aria-label="控制台导航">
+  <a class="rail-logo" href="#overview" aria-label="NEXUS 资源控制台"><img src="favicon.svg?v=nexus" alt="NEXUS Q 标志" width="48" height="48"></a>
+  <nav><a href="#overview" class="on"><b>01</b>总览</a><a href="#telemetry"><b>02</b>曲线</a><a href="#thermal"><b>03</b>温度</a><a href="#processes"><b>04</b>进程</a></nav>
+  <span class="rail-foot">QIHAN / SYSTEMS</span>
+</aside>
 <div class="page" id="page">
-<header>
-  <h1 id="host">…</h1>
+<div class="masthead" id="overview">
+  <a class="wordmark" href="#overview"><img class="mobile-mark" src="favicon.svg?v=nexus" width="32" height="32" alt=""><span class="brand">NEX<em>U</em>S</span><span class="subbrand">QIHAN SYSTEMS<br>主机资源控制台</span></a>
+  <div class="mast-status"><span class="link-label"><i></i>LOCAL NETWORK</span><time id="consoleClock"></time><button id="theme" title="切换控制台配色">夜航模式</button></div>
+</div>
+<div class="fleet" id="fleet" aria-label="快速切换主机"></div>
+<div class="command-deck">
+<header class="host-hero">
+  <div class="hero-kicker"><span class="hero-index">// SELECTED NODE</span><span>当前主机</span></div>
+  <h1 id="hostname">等待连接</h1>
   <span class="meta" id="sysmeta"></span>
-  <span class="status"><span class="dot" id="dot"></span><span id="stat">连接中…</span><button id="theme" title="切换主题">主题：自动</button></span>
+  <div class="host-tools"><label class="hostpick"><span>连接至</span><select id="host" aria-label="选择主机"></select></label>
+  <button id="hostmgr" title="管理主机列表">管理主机 ↗</button>
+  <span class="status"><span class="dot" id="dot"></span><span id="stat">连接中…</span></span></div>
 </header>
+<div class="modal" id="hostModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="hostTitle">
+    <h3 id="hostTitle">管理主机</h3>
+    <p class="muted">预置主机由管理员配置。自定义主机仅保存在当前浏览器；留空可删除。每行一台，格式：<br><code>名称, 地址[, Glances端口=61208][, 看板端口=61209]</code></p>
+    <div id="builtins"></div>
+    <textarea id="hostText" rows="5" aria-label="自定义主机列表" placeholder="例如：&#10;Desktop, desktop.local&#10;NAS, nas.local, 61208, 61209"></textarea>
+    <p id="hostError" role="alert"></p>
+    <div class="row"><button id="hostSave">保存</button><button id="hostCancel">取消</button></div>
+  </div>
+</div>
 
+<div class="powerbar" aria-label="所选主机电源控制">
+  <div class="power-heading"><b>⌁</b>POWER CONTROL / 电源管理</div>
+  <button id="wakeBtn" disabled>唤醒</button>
+  <button id="shutdownBtn" class="danger" disabled>关机…</button>
+  <button id="rebootBtn" disabled>重启…</button>
+  <button id="cancelShutdownBtn" disabled>取消计划</button>
+  <span id="powerMessage" class="note" role="status">正在检查电源控制…</span>
+</div>
+</div>
+<div class="modal" id="powerModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="powerTitle">
+    <h3 id="powerTitle">确认关机</h3>
+    <p id="powerTarget"></p>
+    <p id="powerExplanation" class="muted"></p>
+    <input id="powerPassword" type="password" autocomplete="off" placeholder="控制密码" aria-label="控制密码" hidden>
+    <p id="powerError" role="alert"></p>
+    <div class="row"><button id="powerClose">返回</button><button id="powerConfirm" class="danger">确认</button></div>
+  </div>
+</div>
+
+<div class="section-label"><b>01 / OVERVIEW</b><h2>实时资源</h2></div>
 <div class="filters">
   <label>时间窗
     <span class="seg" id="range">
-      <button data-v="120">2 分钟</button><button data-v="600" class="on">10 分钟</button><button data-v="1800">30 分钟</button><button data-v="3600">1 小时</button>
+      <button data-v="120">2 分钟</button><button data-v="600">10 分钟</button><button data-v="1800" class="on">30 分钟</button><button data-v="3600">1 小时</button>
     </span>
   </label>
   <label>刷新
     <span class="seg" id="ivl">
-      <button data-v="1000">1 秒</button><button data-v="2000" class="on">2 秒</button><button data-v="5000">5 秒</button>
+      <button data-v="1000">1 秒</button><button data-v="2000">2 秒</button><button data-v="5000" class="on">5 秒</button>
     </span>
   </label>
   <label>网卡 <select id="iface"></select></label>
@@ -141,13 +327,24 @@ footer{color:var(--muted);font-size:12px;margin-top:18px}
 
 <div class="tiles" id="tiles"></div>
 
+<div class="section-label" id="telemetry"><b>02 / TELEMETRY</b><h2>性能曲线</h2></div>
 <div class="charts" id="charts"></div>
 
+<div class="section-label" id="thermal"><b>03 / THERMAL</b><h2>硬件传感器</h2></div>
 <div class="card ptable" style="margin-bottom:12px">
-  <h2 style="font-size:14px;margin:0 0 8px">硬件温度 <span style="color:var(--muted);font-weight:400;font-size:12px">按传感器 · 进度条为相对临界值的比例</span></h2>
+  <h2 style="font-size:14px;margin:0 0 8px">硬件温度 <span id="sensorStatus" style="color:var(--muted);font-weight:400;font-size:12px">等待硬件采集</span></h2>
   <table class="p temps"><thead><tr><th class="l">硬件</th><th class="l">传感器</th><th>当前</th><th>阈值（告警 / 临界）</th><th style="width:220px">距临界</th><th>状态</th><th style="width:120px">走势</th></tr></thead><tbody id="tbody"></tbody></table>
 </div>
 
+<section id="smartPanel" class="card ptable" style="margin-bottom:12px" hidden aria-label="硬盘健康">
+  <div class="smart-heading"><h2>硬盘健康 · SMART</h2><b id="smartState" class="smart-state"></b></div>
+  <p id="smartModel" class="smart-meta"></p>
+  <div id="smartValues" class="smart-values"></div>
+  <p id="smartNote" class="smart-meta"></p>
+  <p id="smartTime" class="smart-meta"></p>
+</section>
+
+<div class="section-label" id="processes"><b>04 / PROCESSES</b><h2>进程与任务</h2></div>
 <div class="procs">
   <div class="card"><h2 style="font-size:14px;margin:0 0 8px">CPU 占用最高的进程 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">按 PID · CPU%</span></h2><div class="bars" id="topcpu"></div></div>
   <div class="card"><h2 style="font-size:14px;margin:0 0 8px">内存占用最高的进程 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">按 PID · RSS</span></h2><div class="bars" id="topmem"></div></div>
@@ -163,16 +360,19 @@ footer{color:var(--muted);font-size:12px;margin-top:18px}
   <button class="more" id="more">显示全部</button>
 </div>
 
-<footer>数据源：本机 Glances API（端口 61208），历史仅保存在浏览器内，最长 1 小时。</footer>
+<footer><span class="footer-brand">NEXUS // QIHAN SYSTEMS</span><span>数据来自所选主机 · 历史保留于当前页面，最长 1 小时 · 切换主机后重新采样</span></footer>
 </div>
 <div class="tip" id="gtip" hidden></div>
 
 <script>
 'use strict';
-const API = `${location.protocol}//${location.hostname}:61208/api/4/all`;
 const MAX_POINTS = 3700;
+const SELF = { name: '本机', addr: location.hostname || '127.0.0.1', gport: 61208, dport: Number(location.port) || (location.protocol === 'https:' ? 443 : 80), self: true };
+let HOSTS = [SELF], current = SELF;
+const apiURL = h => `${location.protocol}//${h.addr}:${h.gport}/api/4/all`;
+const sensorsURL = h => `${location.protocol}//${h.addr}:${h.dport}/sensors.json`;
 const hist = [];
-let last = null, interval = 2000, range = 600, iface = null, disk = null, showAll = false;
+let last = null, interval = 5000, range = 1800, iface = null, disk = null, showAll = false;
 let sortKey = 'cpu_percent', sortDir = -1;
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -194,26 +394,34 @@ class LineChart {
   constructor(parent, opts) {
     this.opts = opts;
     const card = document.createElement('div'); card.className = 'card chart';
-    card.innerHTML = `<h2>${opts.title} <span class="u">${opts.unitLabel || ''}</span></h2><div class="legend"></div><div class="plot"><canvas></canvas></div><details class="tbl"><summary>数据表（最近 20 个采样）</summary><table></table></details>`;
+    card.innerHTML = `<div class="chart-head"><span class="chart-index">${String(parent.children.length + 1).padStart(2,'0')}</span><h2><span class="chart-title"></span> <span class="u"></span></h2><span class="chart-mode">WAITING</span></div><div class="legend"></div><div class="plot"><canvas></canvas></div><details class="tbl"><summary>查看采样数据 · 最近 20 条</summary><table></table></details>`;
+    card.querySelector('.chart-title').textContent = opts.title;
+    card.querySelector('.u').textContent = opts.unitLabel || '';
     parent.appendChild(card);
-    this.card = card; this.canvas = card.querySelector('canvas'); this.ctx = this.canvas.getContext('2d');
+    this.card = card; this.canvas = card.querySelector('canvas'); this.canvas.setAttribute('role','img'); this.canvas.setAttribute('aria-label', opts.title + '，可展开下方采样数据'); this.ctx = this.canvas.getContext('2d');
     this.legend = card.querySelector('.legend'); this.table = card.querySelector('table'); this.details = card.querySelector('details');
     this.hover = null; this.rows = [];
     this.canvas.addEventListener('pointermove', e => { this.hover = e.offsetX; this.draw(); });
     this.canvas.addEventListener('pointerleave', () => { this.hover = null; hideTip(); this.draw(); });
-    new ResizeObserver(() => this.draw()).observe(card.querySelector('.plot'));
+    this.observer = new ResizeObserver(() => this.draw()); this.observer.observe(card.querySelector('.plot'));
   }
   setSeries(series) { // [{label, color:'--s1', get: sample=>number}]
     this.series = series;
     this.legend.textContent = '';
-    if (series.length > 1) for (const s of series) { const el = document.createElement('span'); const i = document.createElement('i'); i.style.background = css(s.color); el.append(i, s.label); this.legend.appendChild(el); }
+    for (const s of series) { const el = document.createElement('span'); const i = document.createElement('i'); i.style.background = `var(${s.color})`; if (s.dash?.length) {i.style.background = 'none'; i.style.width = '16px'; i.style.height = '0'; i.style.borderTop = `2px ${s.dash[0] <= 2 ? 'dotted' : 'dashed'} var(${s.color})`;} const value = document.createElement('b'); value.textContent = '–'; el.append(i, s.label, value); this.legend.appendChild(el); }
   }
-  update(rows) { this.rows = rows; this.draw(); if (this.details.open) this.renderTable(); }
+  update(rows) {
+    this.rows = rows;
+    this.card.querySelector('.chart-mode').textContent = rows.length ? `${rows.length} SAMPLES` : 'WAITING';
+    const latest = rows[rows.length - 1];
+    this.legend.querySelectorAll('b').forEach((el,i) => {const value = latest && this.series[i].get(latest); el.textContent = value != null ? UNITS[this.opts.unit].tip(value) : '–';});
+    this.draw(); if (this.details.open) this.renderTable();
+  }
   renderTable() {
     const u = UNITS[this.opts.unit]; const rows = this.rows.slice(-20).reverse();
     const t = this.table; t.textContent = '';
     const tr = document.createElement('tr'); tr.append(th('时间'), ...this.series.map(s => th(s.label))); t.appendChild(tr);
-    for (const r of rows) { const tr2 = document.createElement('tr'); tr2.append(td(fmtTime(r.t)), ...this.series.map(s => td(u.tip(s.get(r) ?? 0)))); t.appendChild(tr2); }
+    for (const r of rows) { const tr2 = document.createElement('tr'); tr2.append(td(fmtTime(r.t)), ...this.series.map(s => td(s.get(r) == null ? '未更新' : u.tip(s.get(r))))); t.appendChild(tr2); }
     function th(x) { const e = document.createElement('th'); e.textContent = x; return e; }
     function td(x) { const e = document.createElement('td'); e.textContent = x; return e; }
   }
@@ -222,13 +430,13 @@ class LineChart {
     if (!W || !H) return;
     c.width = W * dpr; c.height = H * dpr;
     const g = this.ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    g.font = '11px system-ui, sans-serif';
+    g.font = '10px ui-monospace, Consolas, monospace';
     const padL = 48, padR = 14, padT = 10, padB = 22, pw = W - padL - padR, ph = H - padT - padB;
-    const now = Date.now(), t0 = now - range * 1000;
+    const now = Date.now(), viewSeconds = Math.min(range, Math.max(30, (now - (this.rows[0]?.t ?? now)) / 1000)), t0 = now - viewSeconds * 1000;
     const rows = this.rows, u = UNITS[this.opts.unit], stacked = !!this.opts.stacked;
     if (!rows.length || !this.series) { g.fillStyle = css('--muted'); g.textAlign = 'center'; g.fillText('等待数据…', W / 2, H / 2); return; }
     // values matrix
-    const vals = this.series.map(s => rows.map(r => Math.max(0, s.get(r) ?? 0)));
+    const vals = this.series.map(s => rows.map(r => Number.isFinite(s.get(r)) ? s.get(r) : null));
     let peak = 0;
     for (let j = 0; j < rows.length; j++) { let acc = 0; for (let i = 0; i < vals.length; i++) { if (stacked) acc += vals[i][j]; else acc = Math.max(acc, vals[i][j]); } peak = Math.max(peak, acc); }
     let yMax = this.opts.yMax;
@@ -236,44 +444,47 @@ class LineChart {
     const yStep = this.opts.yMax ? this.opts.yMax / 4 : niceStep(yMax, 4);
     const X = t => padL + (t - t0) / (now - t0) * pw, Y = v => padT + ph - v / yMax * ph;
     // grid + y labels
-    g.strokeStyle = css('--grid'); g.lineWidth = 1; g.fillStyle = css('--muted'); g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.strokeStyle = css('--grid'); g.setLineDash([2,5]); g.lineWidth = 1; g.fillStyle = css('--muted'); g.textAlign = 'right'; g.textBaseline = 'middle';
     for (let v = 0; v <= yMax + 1e-9; v += yStep) { const y = Math.round(Y(v)) + .5; g.beginPath(); g.moveTo(padL, y); g.lineTo(W - padR, y); g.stroke(); g.fillText(u.axis(v), padL - 6, y); }
     // x ticks
-    const xs = [10, 30, 60, 120, 300, 600, 900, 1800].find(s => range / s <= 6) || 1800;
+    const xs = [10, 30, 60, 120, 300, 600, 900, 1800].find(s => viewSeconds / s <= 5) || 1800;
     g.textAlign = 'center'; g.textBaseline = 'top';
     for (let t = Math.ceil(t0 / (xs * 1000)) * xs * 1000; t <= now; t += xs * 1000) { const x = Math.round(X(t)) + .5; g.strokeStyle = css('--grid'); g.beginPath(); g.moveTo(x, padT); g.lineTo(x, padT + ph); g.stroke(); g.fillText(fmtTime(t).slice(0, xs >= 60 ? 5 : 8), x, padT + ph + 6); }
     // baseline
-    g.strokeStyle = css('--axis'); g.beginPath(); g.moveTo(padL, Math.round(Y(0)) + .5); g.lineTo(W - padR, Math.round(Y(0)) + .5); g.stroke();
+    g.setLineDash([]); g.strokeStyle = css('--axis'); g.beginPath(); g.moveTo(padL, Math.round(Y(0)) + .5); g.lineTo(W - padR, Math.round(Y(0)) + .5); g.stroke();
     // series
     g.save(); g.beginPath(); g.rect(padL, 0, pw, H); g.clip();
     const base = new Array(rows.length).fill(0);
     const tops = [];
     for (let i = 0; i < vals.length; i++) {
-      const col = css(this.series[i].color); const top = vals[i].map((v, j) => (stacked ? base[j] : 0) + v); tops.push(top);
+      const col = css(this.series[i].color); const top = vals[i].map((v, j) => v == null ? null : (stacked ? base[j] : 0) + v); tops.push(top);
       // area wash
+      if (top.every(v => v != null)) {
       g.beginPath(); rows.forEach((r, j) => g.lineTo(X(r.t), Y(top[j])));
       for (let j = rows.length - 1; j >= 0; j--) g.lineTo(X(rows[j].t), Y(stacked ? base[j] : 0));
-      g.closePath(); g.globalAlpha = .10; g.fillStyle = col; g.fill(); g.globalAlpha = 1;
-      // line
-      g.beginPath(); g.lineWidth = 2; g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = col;
-      rows.forEach((r, j) => g.lineTo(X(r.t), Y(top[j]))); g.stroke();
+      g.closePath(); const wash = g.createLinearGradient(0,padT,0,padT+ph); wash.addColorStop(0,col); wash.addColorStop(1,'transparent'); g.globalAlpha = .23; g.fillStyle = wash; g.fill(); g.globalAlpha = 1;
+      }
+      // line: missing observations break the path rather than becoming zero.
+      g.beginPath(); g.lineWidth = 1.8; g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = col; g.setLineDash(this.series[i].dash || []); g.shadowColor = col; g.shadowBlur = 7;
+      let connected = false;
+      rows.forEach((r, j) => { if (top[j] == null) { connected = false; return; } if (connected) g.lineTo(X(r.t),Y(top[j])); else g.moveTo(X(r.t),Y(top[j])); connected = true; }); g.stroke(); g.shadowBlur = 0; g.setLineDash([]);
       // end marker with surface ring
-      const lj = rows.length - 1; dot(g, X(rows[lj].t), Y(top[lj]), col);
-      if (stacked) for (let j = 0; j < rows.length; j++) base[j] = top[j];
+      const lj = rows.length - 1; if (top[lj] != null) dot(g, X(rows[lj].t), Y(top[lj]), col);
+      if (stacked) for (let j = 0; j < rows.length; j++) base[j] = top[j] ?? base[j];
     }
     // crosshair
     if (this.hover != null && this.hover >= padL && this.hover <= W - padR) {
       const tx = t0 + (this.hover - padL) / pw * (now - t0);
       let j = 0, best = Infinity; rows.forEach((r, k) => { const d = Math.abs(r.t - tx); if (d < best) { best = d; j = k; } });
       const x = Math.round(X(rows[j].t)) + .5;
-      g.strokeStyle = css('--axis'); g.lineWidth = 1; g.beginPath(); g.moveTo(x, padT); g.lineTo(x, padT + ph); g.stroke();
-      this.series.forEach((s, i) => dot(g, x, Y(tops[i][j]), css(s.color)));
-      const lines = this.series.map((s, i) => ({ c: css(s.color), v: u.tip(vals[i][j]), l: s.label }));
+      g.strokeStyle = css('--s1'); g.setLineDash([3,4]); g.lineWidth = 1; g.beginPath(); g.moveTo(x, padT); g.lineTo(x, padT + ph); g.stroke(); g.setLineDash([]);
+      this.series.forEach((s, i) => { if (tops[i][j] != null) dot(g, x, Y(tops[i][j]), css(s.color)); });
+      const lines = this.series.map((s, i) => ({ c: css(s.color), v: vals[i][j] == null ? '未更新' : u.tip(vals[i][j]), l: s.label }));
       if (stacked && vals.length > 1) lines.push({ c: css('--axis'), v: u.tip(tops[tops.length - 1][j]), l: '合计' });
       showTip(this.canvas, this.hover, fmtTime(rows[j].t), lines);
     }
     g.restore();
-    function dot(g, x, y, col) { g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fillStyle = css('--surface'); g.fill(); g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2); g.fillStyle = col; g.fill(); }
+    function dot(g, x, y, col) { g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fillStyle = css('--surface'); g.fill(); g.beginPath(); g.arc(x, y, 2.7, 0, Math.PI * 2); g.fillStyle = col; g.fill(); }
   }
 }
 
@@ -281,28 +492,34 @@ class LineChart {
 class ColumnChart {
   constructor(parent, title) {
     const card = document.createElement('div'); card.className = 'card chart';
-    card.innerHTML = `<h2>${title} <span class="u">%</span></h2><div class="legend"></div><div class="plot"><canvas></canvas></div><details class="tbl"><summary>数据表</summary><table></table></details>`;
-    parent.appendChild(card); this.canvas = card.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.table = card.querySelector('table'); this.details = card.querySelector('details');
+    card.innerHTML = `<div class="chart-head"><span class="chart-index">${String(parent.children.length + 1).padStart(2,'0')}</span><h2><span class="chart-title"></span> <span class="u">%</span></h2><span class="chart-mode">WAITING</span></div><div class="legend"><span><i style="background:var(--s1)"></i>逻辑核心负载</span><span>峰值 <b class="core-peak">–</b></span></div><div class="plot"><canvas></canvas></div><details class="tbl"><summary>查看每核心数据</summary><table></table></details>`;
+    card.querySelector('.chart-title').textContent = title; this.card = card;
+    parent.appendChild(card); this.canvas = card.querySelector('canvas'); this.canvas.setAttribute('role','img'); this.canvas.setAttribute('aria-label',title + '，可展开下方每核心数据'); this.ctx = this.canvas.getContext('2d'); this.table = card.querySelector('table'); this.details = card.querySelector('details');
     this.vals = []; this.hover = null;
     this.canvas.addEventListener('pointermove', e => { this.hover = e.offsetX; this.draw(); });
     this.canvas.addEventListener('pointerleave', () => { this.hover = null; hideTip(); this.draw(); });
-    new ResizeObserver(() => this.draw()).observe(card.querySelector('.plot'));
+    this.observer = new ResizeObserver(() => this.draw()); this.observer.observe(card.querySelector('.plot'));
   }
-  update(vals) { this.vals = vals; this.draw(); if (this.details.open) { const t = this.table; t.textContent = ''; const tr = document.createElement('tr'); vals.forEach((v, i) => { const th = document.createElement('th'); th.textContent = 'CPU' + i; tr.appendChild(th); }); t.appendChild(tr); const tr2 = document.createElement('tr'); vals.forEach(v => { const td = document.createElement('td'); td.textContent = fmtPct(v); tr2.appendChild(td); }); t.appendChild(tr2); } }
+  update(vals) { this.vals = vals; this.card.querySelector('.chart-mode').textContent = vals.length ? `${vals.length} CORES` : 'WAITING'; this.card.querySelector('.core-peak').textContent = vals.length ? fmtPct(Math.max(...vals)) : '–'; this.draw(); if (this.details.open) { const t = this.table; t.textContent = ''; const tr = document.createElement('tr'); vals.forEach((v, i) => { const th = document.createElement('th'); th.textContent = 'CPU' + i; tr.appendChild(th); }); t.appendChild(tr); const tr2 = document.createElement('tr'); vals.forEach(v => { const td = document.createElement('td'); td.textContent = fmtPct(v); tr2.appendChild(td); }); t.appendChild(tr2); } }
   draw() {
     const c = this.canvas, dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
-    c.width = W * dpr; c.height = H * dpr; const g = this.ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.font = '11px system-ui, sans-serif';
+    c.width = W * dpr; c.height = H * dpr; const g = this.ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.font = '10px ui-monospace, Consolas, monospace';
     const padL = 48, padR = 14, padT = 10, padB = 22, pw = W - padL - padR, ph = H - padT - padB, n = this.vals.length;
     g.strokeStyle = css('--grid'); g.fillStyle = css('--muted'); g.textAlign = 'right'; g.textBaseline = 'middle';
     for (let v = 0; v <= 100; v += 25) { const y = Math.round(padT + ph - v / 100 * ph) + .5; g.beginPath(); g.moveTo(padL, y); g.lineTo(W - padR, y); g.stroke(); g.fillText(v + '%', padL - 6, y); }
-    g.strokeStyle = css('--axis'); g.beginPath(); g.moveTo(padL, Math.round(padT + ph) + .5); g.lineTo(W - padR, Math.round(padT + ph) + .5); g.stroke();
+    g.setLineDash([]); g.strokeStyle = css('--axis'); g.beginPath(); g.moveTo(padL, Math.round(padT + ph) + .5); g.lineTo(W - padR, Math.round(padT + ph) + .5); g.stroke();
     if (!n) return;
-    const slot = pw / n, bw = Math.min(24, slot - 2), col = css('--s1');
+    const slot = pw / n, bw = Math.max(1, Math.min(26, slot - 5)), col = css('--s1');
     let hi = -1; if (this.hover != null) hi = Math.floor((this.hover - padL) / slot);
     g.textAlign = 'center'; g.textBaseline = 'top';
     this.vals.forEach((v, i) => {
       const x = padL + slot * i + (slot - bw) / 2, h = Math.max(1, v / 100 * ph), y = padT + ph - h;
-      g.fillStyle = col; g.globalAlpha = hi === i ? .75 : 1; g.beginPath(); g.roundRect(x, y, bw, h, [4, 4, 0, 0]); g.fill(); g.globalAlpha = 1;
+      g.fillStyle = css('--track'); g.globalAlpha = .4; g.fillRect(x,padT,bw,ph); g.globalAlpha = 1;
+      const active = v >= 85 ? css('--critical') : v >= 70 ? css('--warn') : col;
+      const gradient = g.createLinearGradient(0,y,0,padT+ph); gradient.addColorStop(0,active); gradient.addColorStop(1,css('--track'));
+      g.fillStyle = gradient; g.globalAlpha = hi === i ? 1 : .85; g.fillRect(x,y,bw,h); g.globalAlpha = 1;
+      g.fillStyle = active; g.shadowColor = active; g.shadowBlur = 7; g.fillRect(x,y,bw,2); g.shadowBlur = 0;
+      g.fillStyle = css('--panel'); for(let cut = padT + ph - 8; cut > y; cut -= 8) g.fillRect(x,cut,bw,1);
       if (slot >= 22) { g.fillStyle = css('--muted'); g.fillText(String(i), x + bw / 2, padT + ph + 6); }
     });
     if (hi >= 0 && hi < n) showTip(this.canvas, this.hover, '核心 ' + hi, [{ c: col, v: fmtPct(this.vals[hi]), l: '使用率' }]);
@@ -325,7 +542,7 @@ function hideTip() { gtip.hidden = true; }
 const TILES = ['cpu', 'mem', 'load', 'temp', 'net', 'io', 'fs', 'proc'];
 const tilesEl = document.getElementById('tiles'), tileEls = {};
 for (const id of TILES) {
-  const el = document.createElement('div'); el.className = 'card tile';
+  const el = document.createElement('div'); el.className = 'card tile'; el.dataset.code = id.toUpperCase();
   el.innerHTML = `<div class="label"><span class="name"></span><span class="hint"></span></div><div class="value"></div><div class="sub"></div><div class="foot"><div class="meters"></div><canvas hidden></canvas></div>`;
   tilesEl.appendChild(el); tileEls[id] = el;
 }
@@ -362,15 +579,16 @@ const cpuChart = new LineChart(chartsEl, { title: 'CPU 使用率', unitLabel: '%
 cpuChart.setSeries([{ label: '用户态', color: '--s1', get: s => s.user }, { label: '内核态', color: '--s2', get: s => s.sys }, { label: 'IO 等待', color: '--s3', get: s => s.iowait }]);
 const coreChart = new ColumnChart(chartsEl, '每核心使用率');
 const memChart = new LineChart(chartsEl, { title: '内存与 Swap', unitLabel: '%', unit: 'pct', yMax: 100 });
-memChart.setSeries([{ label: '内存', color: '--s1', get: s => s.mem }, { label: 'Swap', color: '--s2', get: s => s.swap }]);
+memChart.setSeries([{ label: '内存', color: '--s2', get: s => s.mem }, { label: 'Swap', color: '--s4', get: s => s.swap }]);
 const netChart = new LineChart(chartsEl, { title: '网络吞吐', unitLabel: '每秒字节', unit: 'bytes' });
 netChart.setSeries([{ label: '下行', color: '--s1', get: s => netOf(s).rx }, { label: '上行', color: '--s2', get: s => netOf(s).tx }]);
 const ioChart = new LineChart(chartsEl, { title: '磁盘 IO', unitLabel: '每秒字节', unit: 'bytes' });
 ioChart.setSeries([{ label: '读', color: '--s1', get: s => diskOf(s).r }, { label: '写', color: '--s2', get: s => diskOf(s).w }]);
 const loadChart = new LineChart(chartsEl, { title: '系统负载', unitLabel: '相对核心数', unit: 'load' });
-loadChart.setSeries([{ label: '1 分钟', color: '--s1', get: s => s.load1 }, { label: '5 分钟', color: '--s2', get: s => s.load5 }, { label: '15 分钟', color: '--s3', get: s => s.load15 }]);
+loadChart.setSeries([{ label: '1 分钟', color: '--s3', get: s => s.load1 }, { label: '5 分钟', color: '--s2', get: s => s.load5 }, { label: '15 分钟', color: '--s4', get: s => s.load15 }]);
 let sensorMeta = [], sensorKey = '';
 const tempCharts = [];
+let diskTempSelection = null, diskTempMode = 'multiple';
 const tmax = s => { let m = null; for (const k in s.temp) if (m == null || s.temp[k] > m) m = s.temp[k]; return m; };
 
 function netOf(s) { if (iface === 'all') { let rx = 0, tx = 0; for (const k in s.net) { rx += s.net[k].rx; tx += s.net[k].tx; } return { rx, tx }; } return s.net[iface] || { rx: 0, tx: 0 }; }
@@ -379,33 +597,91 @@ function diskOf(s) { return s.dsk[disk] || { r: 0, w: 0 }; }
 
 /* ---------- temperature charts & table ---------- */
 function ensureTempCharts() {
-  const key = sensorMeta.map(x => x.id).join();
+  const key = sensorMeta.map(x => [x.id,x.group,x.label].join(':')).join();
   if (key === sensorKey) return; sensorKey = key;
-  for (const c of tempCharts) c.card.remove(); tempCharts.length = 0;
+  for (const c of tempCharts) { c.observer.disconnect(); c.card.remove(); } tempCharts.length = 0;
   const groups = [];
   const core = sensorMeta.filter(x => x.group === 'core');
-  if (core.length) groups.push({ title: 'CPU · GPU · 主板温度', items: core.slice(0, 4), label: x => x.device.split(' · ')[0] });
-  for (const dev of [...new Set(sensorMeta.filter(x => x.group === 'nvme').map(x => x.device_id))]) {
-    const items = sensorMeta.filter(x => x.device_id === dev);
-    groups.push({ title: '硬盘温度 · ' + items[0].device.split(' · ').slice(1).join(' · '), items: items.slice(0, 4), label: x => x.label });
-  }
+  if (core.length) groups.push({ title: 'CPU · GPU · 设备温度', items: core.slice(0, 4), label: x => x.device.split(' · ')[0] });
+  const board = sensorMeta.filter(x => x.group === 'board');
+  if (board.length) groups.push({ title: '主板芯片温度 · 测点位置未核实', items: board.slice(0, 4), label: x => x.label });
   for (const gp of groups) {
     const c = new LineChart(chartsEl, { title: gp.title, unitLabel: '°C', unit: 'temp' });
     c.setSeries(gp.items.map((x, i) => ({ key: x.id, label: gp.label(x), color: '--s' + (i + 1), get: s => s.temp[x.id] })));
     tempCharts.push(c);
   }
+  const disks = [...new Set(sensorMeta.filter(x => ['nvme','sata'].includes(x.group)).map(x => x.device_id))].map(id => ({
+    id, items: sensorMeta.filter(x => x.device_id === id).slice(0,4)
+  }));
+  if (disks.length) {
+    const chart = new LineChart(chartsEl, {title:'硬盘温度', unitLabel:'°C · 按硬盘筛选', unit:'temp'});
+    chart.card.classList.add('disk-temperature-chart');
+    configureDiskTemperatureChart(chart, disks); tempCharts.push(chart);
+  }
 }
+function configureDiskTemperatureChart(chart, disks) {
+  const ids = disks.map(d => d.id);
+  diskTempSelection = diskTempSelection == null ? new Set(ids) : new Set(ids.filter(id => diskTempSelection.has(id)));
+  if (!diskTempSelection.size) diskTempSelection = new Set(diskTempMode === 'single' ? ids.slice(0,1) : ids);
+  const controls = document.createElement('div'); controls.className = 'disk-controls';
+  const toolbar = document.createElement('div'); toolbar.className = 'disk-toolbar';
+  const modes = document.createElement('div'); modes.className = 'seg'; modes.setAttribute('aria-label','硬盘选择模式');
+  const modeButtons = [];
+  for (const [mode,label] of [['single','单选'],['multiple','多选']]) {
+    const button = document.createElement('button'); button.textContent = label; button.dataset.mode = mode;
+    button.addEventListener('click', () => {
+      diskTempMode = mode;
+      if (mode === 'single') diskTempSelection = new Set([ids.find(id => diskTempSelection.has(id)) || ids[0]]);
+      refresh();
+    }); modes.appendChild(button); modeButtons.push(button);
+  }
+  const all = document.createElement('button'); all.textContent = '全选'; all.className = 'disk-all';
+  all.addEventListener('click', () => {diskTempMode = 'multiple'; diskTempSelection = new Set(ids); refresh();});
+  const count = document.createElement('span'); count.className = 'disk-count';
+  toolbar.append(modes,all,count);
+  const tags = document.createElement('div'); tags.className = 'disk-tags'; tags.setAttribute('aria-label','选择展示的硬盘');
+  const tagButtons = [];
+  disks.forEach((disk,i) => {
+    const button = document.createElement('button'); button.className = 'disk-tag'; button.dataset.diskId = disk.id;
+    button.style.setProperty('--disk-color',`var(--s${i%4+1})`); button.title = disk.items[0].device;
+    const name = document.createElement('b'); name.textContent = disk.id;
+    const model = document.createElement('span'); model.textContent = disk.items[0].device.split(' · ').slice(1).join(' · ') || disk.items[0].device;
+    button.append(name,model);
+    button.addEventListener('click', () => {
+      if (diskTempMode === 'single') diskTempSelection = new Set([disk.id]);
+      else if (diskTempSelection.has(disk.id)) {if (diskTempSelection.size > 1) diskTempSelection.delete(disk.id);}
+      else diskTempSelection.add(disk.id);
+      refresh();
+    }); tags.appendChild(button); tagButtons.push(button);
+  });
+  const hint = document.createElement('p'); hint.className = 'disk-hint'; hint.textContent = '同一硬盘使用同色曲线；不同线型区分传感器。至少保留一块硬盘。';
+  controls.append(toolbar,tags,hint); chart.card.insertBefore(controls,chart.legend);
+  function refresh() {
+    modeButtons.forEach(button => {const on = button.dataset.mode === diskTempMode; button.classList.toggle('on',on); button.setAttribute('aria-pressed',String(on));});
+    tagButtons.forEach(button => {const on = diskTempSelection.has(button.dataset.diskId); button.classList.toggle('on',on); button.setAttribute('aria-pressed',String(on));});
+    count.textContent = `${diskTempSelection.size} / ${ids.length} 块硬盘`;
+    chart.setSeries(disks.flatMap((disk,i) => diskTempSelection.has(disk.id) ? disk.items.map((sensor,j) => ({
+      key:sensor.id, label:`${disk.id} · ${sensor.label}`, color:`--s${i%4+1}`,
+      dash:[[],[6,3],[2,3],[9,3,2,3]][j%4], get:sample => sample.temp[sensor.id]
+    })) : []));
+    chart.hover = null; hideTip(); chart.update(hist.filter(sample => sample.t >= Date.now() - range*1000));
+  }
+  refresh();
+}
+
 const tbody = document.getElementById('tbody'), sparkCache = {};
 function renderTempTable(cur) {
   tbody.textContent = ''; let prev = null;
   for (const x of sensorMeta) {
-    const v = cur.temp[x.id]; if (v == null) continue;
-    const crit = x.crit, warn = x.warn; const pct = crit ? v / crit * 100 : null;
-    const cls = pct == null ? null : pct < warn / crit * 100 * .9 ? 'good' : v < warn ? 'warn' : v < crit ? 'serious' : 'critical';
-    const txt = { good: '● 正常', warn: '▲ 接近告警', serious: '▲ 超过告警', critical: '■ 达到临界' }[cls] || '– 无阈值';
+    const v = cur.temp[x.id] ?? x.value;
+    const usable = Number.isFinite(v) && !x.stale && !['unverified','unavailable'].includes(x.quality);
+    const crit = x.crit, warn = x.warn; const pct = usable && crit ? v / crit * 100 : null;
+    const cls = pct == null ? null : v >= crit ? 'critical' : warn == null || v < warn * .9 ? 'good' : v < warn ? 'warn' : 'serious';
+    const txt = x.stale || x.quality === 'unavailable' ? '未更新' : x.quality === 'unverified' ? '未核实 · 不绘图' : { good: '● 正常', warn: '▲ 接近告警', serious: '▲ 超过告警', critical: '■ 达到临界' }[cls] || '– 无阈值';
     const tr = document.createElement('tr'); if (x.device_id !== prev) tr.className = 'first'; prev = x.device_id;
     const td = (t, c) => { const e = document.createElement('td'); e.textContent = t; if (c) e.className = c; tr.appendChild(e); return e; };
-    td(x.device, 'l dev'); td(x.label, 'l'); td(v.toFixed(1) + ' °C');
+    td(x.device, 'l dev').title = x.source ? `${x.source.driver} · ${x.source.path}` : '';
+    td(x.label, 'l').title = x.note || ''; td(Number.isFinite(v) ? v.toFixed(1) + ' °C' + (x.stale ? '（上次）' : '') : '–');
     td(crit ? `${warn != null ? warn.toFixed(0) : '–'} / ${crit.toFixed(0)} °C${x.assumed ? '（默认值）' : ''}` : '–');
     const m = td('', 'm'); if (pct != null) { const mt = document.createElement('div'); mt.className = 'meter'; const i = document.createElement('i'); i.style.width = Math.min(100, pct) + '%'; i.style.background = cls === 'good' ? 'var(--s1)' : `var(--${cls})`; mt.appendChild(i); m.appendChild(mt); }
     const st = td('', ''); st.className = 'st ' + (cls || ''); const b = document.createElement('b'); b.textContent = txt; st.appendChild(b); st.style.textAlign = 'right';
@@ -414,13 +690,49 @@ function renderTempTable(cur) {
     drawSparkOn(cv, hist.slice(-60).map(s => s.temp[x.id]));
   }
 }
+let storageLast = null;
+function renderStorage(value) {
+  if (value?.enabled) storageLast = value;
+  else if (value === null && storageLast) storageLast = {...storageLast, stale:true, error:'连接失败，SMART 未更新'};
+  else storageLast = null;
+  const panel = document.getElementById('smartPanel'); panel.hidden = !storageLast;
+  if (!storageLast) return;
+  const s = storageLast, d = s.disks?.[0], state = document.getElementById('smartState');
+  state.dataset.state = s.stale ? 'warning' : d?.state || 'unknown';
+  state.textContent = s.stale ? '未更新' : ({passed:'SMART 通过',warning:'需关注',failed:'健康告警',unknown:'状态未知'}[d?.state] || '状态未知');
+  document.getElementById('smartModel').textContent = d ? `${d.model} · ${d.device} · SATA · ${fmtBytes(d.capacity_bytes)} · 固件 ${d.firmware || '未提供'}` : '等待硬盘健康数据';
+  const values = document.getElementById('smartValues'); values.textContent = '';
+  const number = (v, unit='') => v == null ? '未提供' : `${v.toLocaleString()}${unit}`;
+  const fields = d ? [
+    ['总体 SMART',d.passed === true ? '通过' : d.passed === false ? '未通过' : '未知'],
+    [d.temperature_status === 'unverified' ? '固件温度 · 未核实' : 'SMART 上报温度',number(d.temperature,' °C')],
+    ['通电时长',number(d.power_on_hours,' 小时')],['通电次数',number(d.power_cycles,' 次')],
+    ['累计读取 · ATA 日志',d.statistics?.bytes_read == null ? '未提供' : fmtBytes(d.statistics.bytes_read)],
+    ['累计写入 · ATA 日志',d.statistics?.bytes_written == null ? '未提供' : fmtBytes(d.statistics.bytes_written)],
+    ['读取命令数 · ATA 日志',number(d.statistics?.read_commands)],['写入命令数 · ATA 日志',number(d.statistics?.write_commands)],
+    [d.database_matched ? '05 · 重映射原始值' : '05 · 厂商原始值',number(d.counters?.['5'])],
+    [d.database_matched ? '197 · 待处理原始值' : '197 · 厂商原始值',number(d.counters?.['197'])],
+    [d.database_matched ? '198 · 不可校正原始值' : '198 · 厂商原始值',number(d.counters?.['198'])],
+    [d.database_matched ? '199 · CRC 错误原始值' : '199 · 厂商原始值',number(d.counters?.['199'])]
+  ] : [];
+  for (const [label,text] of fields) {const cell=document.createElement('div'), k=document.createElement('span'), v=document.createElement('b');k.textContent=label;v.textContent=text;cell.append(k,v);values.appendChild(cell);}
+  document.getElementById('smartNote').textContent = [s.error,
+    d?.temperature_status === 'unverified' ? '温度长期固定，真实性未核实，已排除温度曲线；保留固件原始上报值。' : '',
+    d?.state === 'warning' ? '部分原始计数非零或有 SMART 告警，请关注后续变化。' : '',
+    d && !d.database_matched ? '型号未匹配数据库；厂商属性含义未核实，非零值不能直接等同坏扇区数量或寿命损耗。' : 'SMART 通过不代表没有故障风险。',
+    d?.statistics?.bytes_read != null || d?.statistics?.bytes_written != null ? '累计读写量来自标准 ATA 统计日志，按逻辑扇区大小换算。' : ''
+  ].filter(Boolean).join(' ');
+  document.getElementById('smartTime').textContent = `${s.updated_at ? '采集于 ' + new Date(s.updated_at).toLocaleString() : '尚无成功采集'} · 每 ${s.interval_seconds || 60} 秒读取${s.stale && d ? ' · 以下为上次成功读取值，未更新' : ''}`;
+}
+
 function drawSparkOn(c, rows) {
   const dpr = devicePixelRatio || 1, W = c.clientWidth || 120, H = c.clientHeight || 22; c.width = W * dpr; c.height = H * dpr;
   const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  rows = rows.map(v => v == null ? 0 : v); if (rows.length < 2) return; const mx = Math.max(...rows, 1e-9), mn = Math.min(...rows); const span = Math.max(mx - mn, 2);
+  const valid = rows.filter(Number.isFinite); if (valid.length < 2) return; const mx = Math.max(...valid, 1e-9), mn = Math.min(...valid); const span = Math.max(mx - mn, 2);
   g.beginPath(); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = css('--axis');
-  rows.forEach((v, i) => g.lineTo(2 + i / (rows.length - 1) * (W - 6), H - 3 - (v - mn) / span * (H - 6))); g.stroke();
-  g.beginPath(); g.arc(2 + (W - 6), H - 3 - (rows[rows.length - 1] - mn) / span * (H - 6), 3, 0, Math.PI * 2); g.fillStyle = css('--s1'); g.fill();
+  let connected = false;
+  rows.forEach((v, i) => { if (!Number.isFinite(v)) { connected = false; return; } const x = 2 + i / (rows.length - 1) * (W - 6), y = H - 3 - (v - mn) / span * (H - 6); if (connected) g.lineTo(x,y); else g.moveTo(x,y); connected = true; }); g.stroke();
+  if (Number.isFinite(rows[rows.length - 1])) { g.beginPath(); g.arc(2 + (W - 6), H - 3 - (rows[rows.length - 1] - mn) / span * (H - 6), 3, 0, Math.PI * 2); g.fillStyle = css('--s1'); g.fill(); }
 }
 
 /* ---------- sample ---------- */
@@ -428,8 +740,7 @@ function toSample(d, sens) {
   const s = { t: Date.now(), cpu: d.cpu.total, user: d.cpu.user, sys: d.cpu.system, iowait: d.cpu.iowait, mem: d.mem.percent, swap: d.memswap.percent, load1: d.load.min1, load5: d.load.min5, load15: d.load.min15, net: {}, dsk: {}, temp: {} };
   for (const n of d.network) s.net[n.interface_name] = { rx: n.bytes_recv_rate_per_sec || 0, tx: n.bytes_sent_rate_per_sec || 0 };
   for (const n of d.diskio) s.dsk[n.disk_name] = { r: n.read_bytes_rate_per_sec || 0, w: n.write_bytes_rate_per_sec || 0 };
-  if (sens) { for (const n of sens) { if (n.unit === 'W') s.gpuW = n.value; else s.temp[n.id] = n.value; } }
-  else for (const n of d.sensors) if (n.type === 'temperature_core' && n.value != null) s.temp[n.label] = n.value;
+  if (sens) { for (const n of sens) { if (!Number.isFinite(n.value) || ['unverified','unavailable'].includes(n.quality)) continue; if (n.unit === 'W') s.gpuW = n.value; else s.temp[n.id] = n.value; } }
   return s;
 }
 
@@ -444,7 +755,7 @@ function fillSelect(sel, names, cur, allLabel) {
 function render() {
   const d = last; if (!d) return;
   const win = hist.filter(s => s.t >= Date.now() - range * 1000);
-  document.getElementById('host').textContent = d.system.hostname;
+  document.getElementById('hostname').textContent = d.system.hostname;
   document.getElementById('sysmeta').textContent = `${d.system.hr_name} · ${d.quicklook.cpu_name} · ${d.core.phys} 物理 / ${d.core.log} 逻辑核 · 已运行 ${d.uptime} · ${d.ip.address}`;
   // tiles
   const cur = hist[hist.length - 1];
@@ -456,12 +767,12 @@ function render() {
   const lp = d.load.min1 / d.core.log * 100;
   fill('load', { label: '负载', hint: `${d.core.log} 逻辑核`, value: d.load.min1.toFixed(2),
     sub: `5 分钟 ${d.load.min5.toFixed(2)} · 15 分钟 ${d.load.min15.toFixed(2)} · 占核心 ${lp.toFixed(0)}% · ${status(lp)[1].slice(2)}`, spark: x => x.load1 });
-  { const cpuT = cur.temp['cpu.tctl'], gpuT = cur.temp['gpu.edge'], bT = cur.temp['board.temp1'];
-    const nv = sensorMeta.filter(x => x.group === 'nvme' && /composite/.test(x.id)).map(x => cur.temp[x.id]).filter(v => v != null);
-    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`);
+  { const cpuT = cur.temp['cpu.tctl'] ?? cur.temp['cpu.package_id_0'], gpuT = cur.temp['gpu.edge'], bT = cur.temp['board.temp1'];
+    const nv = sensorMeta.filter(x => (x.group === 'nvme' && /composite/.test(x.id)) || x.group === 'sata').map(x => cur.temp[x.id]).filter(v => v != null);
+    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`ACPI ${bT.toFixed(0)} °C`);
     const main = cpuT ?? tmax(cur);
     fill('temp', { label: cpuT != null ? 'CPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
-      value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? tmax(x) }); }
+      value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? tmax(x) }); }
   { const n = netOf(cur); const ifs = iface === 'all' ? d.network : d.network.filter(x => x.interface_name === iface);
     const rxT = ifs.reduce((a, x) => a + (x.bytes_recv_gauge || 0), 0), txT = ifs.reduce((a, x) => a + (x.bytes_sent_gauge || 0), 0);
     fill('net', { label: '网络', hint: iface === 'all' ? '全部网卡' : iface, values: ['↓ ' + fmtRate(n.rx), '↑ ' + fmtRate(n.tx)],
@@ -535,24 +846,239 @@ function renderTable(d) {
 
 /* ---------- polling ---------- */
 const dot = document.getElementById('dot'), statEl = document.getElementById('stat'), page = document.getElementById('page');
+let pollTimer, pollController, hostGeneration = 0;
 async function poll() {
-  const t = Date.now();
-  try {
-    const [r, rs] = await Promise.all([fetch(API, { cache: 'no-store' }), fetch('sensors.json', { cache: 'no-store' }).catch(() => null)]);
+  clearTimeout(pollTimer);
+  const t = Date.now(), generation = hostGeneration, h = current;
+  const controller = new AbortController(); pollController = controller;
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const getJSON = async url => {
+    const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json(); last = d;
-    let sens = null; if (rs && rs.ok) { sens = (await rs.json()).sensors; const gn = d.gpu && d.gpu[0] && d.gpu[0].name; if (gn) for (const x of sens) if (x.device_id === 'gpu') x.device = 'GPU · ' + gn; sensorMeta = sens.filter(x => x.unit !== 'W'); }
-    else if (sensorMeta.length === 0) sensorMeta = d.sensors.filter(x => x.type === 'temperature_core' && x.value != null).map(x => ({ id: x.label, device_id: x.label, device: 'Glances 传感器（未识别硬件）', group: 'core', label: x.label, warn: x.warning > 500 ? null : x.warning, crit: x.critical > 500 ? null : x.critical }));
+    return r.json();
+  };
+  try {
+    const [d, sj] = await Promise.all([getJSON(apiURL(h)), getJSON(sensorsURL(h)).catch(() => null)]);
+    if (generation !== hostGeneration) return;
+    const sens = Array.isArray(sj?.sensors) ? sj.sensors : null;
+    renderStorage(sj ? sj.storage : null);
+    if (sens) {
+      const gn = d.gpu?.[0]?.name;
+      if (gn) for (const x of sens) if (x.device_id === 'gpu') x.device = 'GPU · ' + gn;
+      const previous = new Map(sensorMeta.map(x => [x.id,x]));
+      sensorMeta = sens.filter(x => x.unit !== 'W').map(x => {
+        const old = previous.get(x.id); previous.delete(x.id);
+        return x.value == null && old ? {...x,value:old.value,sampled_at:old.sampled_at,stale:true} : x;
+      });
+    } else sensorMeta = sensorMeta.map(x => ({...x, stale:true}));
+    document.getElementById('sensorStatus').textContent = sens ? (sens.some(x => x.group === 'board') ? '主板芯片通道已发现，测点位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
+    if (sens && sensorMeta.some(x => x.quality === 'unavailable')) document.getElementById('sensorStatus').textContent += ' · 部分传感器未更新';
+    last = d;
     hist.push(toSample(d, sens)); while (hist.length > MAX_POINTS) hist.shift();
     const ifs = d.network.map(n => n.interface_name); if (!iface) iface = d.network.slice().sort((a, b) => b.bytes_all_gauge - a.bytes_all_gauge)[0]?.interface_name || 'all';
     fillSelect(document.getElementById('iface'), ifs, iface, '全部（合计）');
     const dks = d.diskio.map(n => n.disk_name); if (!disk) disk = dks[0];
     fillSelect(document.getElementById('disk'), dks, disk);
+    if (powerConfig && !powerConfig.remote && !powerLoading && !powerBusy && powerModal.hidden) refreshPower();
     dot.classList.remove('off'); page.classList.remove('stale'); statEl.textContent = '更新于 ' + fmtTime(Date.now());
     render();
-  } catch (e) { dot.classList.add('off'); page.classList.add('stale'); statEl.textContent = '连接失败：' + e.message; }
-  setTimeout(poll, Math.max(200, interval - (Date.now() - t)));
+  } catch (e) {
+    if (generation !== hostGeneration) return;
+    controller.abort();
+    renderStorage(null);
+    dot.classList.add('off'); page.classList.add('stale');
+    statEl.textContent = '连接失败：' + (e.name === 'AbortError' ? '请求超时' : e.message) + ' · 自动重试';
+  } finally {
+    clearTimeout(timeout);
+    if (generation === hostGeneration) pollTimer = setTimeout(poll, Math.max(200, interval - (Date.now() - t)));
+  }
 }
+
+/* ---------- hosts ---------- */
+const hostSel = document.getElementById('host');
+const hostKey = h => `${h.addr}:${h.gport}:${h.dport}`;
+function normalizeHost(h) {
+  if (!h || typeof h.addr !== 'string' || typeof h.name !== 'string' || !h.name.trim()) throw new Error('请填写名称和主机地址');
+  const addr = h.addr.trim().toLowerCase();
+  if (!/^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:]+\])$/i.test(addr)) throw new Error('地址只填写 IP 或主机名，不含协议、路径或端口');
+  try { new URL(`http://${addr}/`); } catch { throw new Error('无效主机地址'); }
+  const port = (v, fallback) => { const n = v == null || v === '' ? fallback : Number(v); if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error('端口必须为 1–65535 的整数'); return n; };
+  return { name: h.name.trim(), addr, gport: port(h.gport, 61208), dport: port(h.dport, 61209) };
+}
+function parseHosts(text) {
+  return text.split('\n').flatMap((line, i) => {
+    if (!line.trim()) return [];
+    const parts = line.split(',').map(x => x.trim());
+    try {
+      if (parts.length < 2 || parts.length > 4) throw new Error('使用逗号分隔名称、地址和可选端口');
+      const [name, addr, gport, dport] = parts; return [normalizeHost({ name, addr, gport, dport })];
+    } catch (e) { throw new Error(`第 ${i + 1} 行：${e.message}`); }
+  });
+}
+function readSetting(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function writeSetting(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
+function validHosts(list) {
+  return Array.isArray(list) ? list.flatMap(h => { try { return [normalizeHost(h)]; } catch { return []; } }) : [];
+}
+function loadUserHosts() { try { return validHosts(JSON.parse(readSetting('hosts_user') || '[]')); } catch { return []; } }
+let builtinHosts = [];
+function rebuildHosts() {
+  const configuredHosts = [...builtinHosts, ...loadUserHosts()];
+  const configuredSelf = configuredHosts.find(h => hostKey(h) === hostKey(SELF));
+  SELF.name = configuredSelf?.name || '本机';
+  const seen = new Set([hostKey(SELF)]); HOSTS = [SELF];
+  for (const h of configuredHosts) { const key = hostKey(h); if (seen.has(key)) continue; seen.add(key); HOSTS.push(h); }
+  hostSel.textContent = '';
+  for (const h of HOSTS) { const o = document.createElement('option'); o.value = hostKey(h); o.textContent = `${h.name} · ${h.addr}:${h.gport}`; hostSel.appendChild(o); }
+  const want = readSetting('host_sel');
+  const pick = HOSTS.find(h => hostKey(h) === want || h.addr === want) || SELF;
+  hostSel.value = hostKey(pick); renderFleet(); switchHost(pick);
+}
+function renderFleet() {
+  const fleet = document.getElementById('fleet'); fleet.textContent = '';
+  HOSTS.forEach((h, i) => {
+    const button = document.createElement('button'); button.className = 'node-card'; button.dataset.host = hostKey(h);
+    const number = document.createElement('span'); number.className = 'node-number'; number.textContent = String(i + 1).padStart(2,'0');
+    const copy = document.createElement('span'); copy.className = 'node-copy';
+    const name = document.createElement('strong'); name.textContent = h.name;
+    const addr = document.createElement('small'); addr.textContent = h.addr; copy.append(name,addr);
+    const state = document.createElement('span'); state.className = 'node-state'; state.textContent = 'SELECT ↗';
+    button.append(number,copy,state); button.addEventListener('click', () => {hostSel.value = hostKey(h); switchHost(h);}); fleet.appendChild(button);
+  });
+}
+function markFleet() {
+  document.querySelectorAll('.node-card').forEach(button => {
+    const on = button.dataset.host === hostKey(current); button.classList.toggle('on',on); button.setAttribute('aria-pressed',String(on));
+    button.querySelector('.node-state').textContent = on ? 'SELECTED' : 'SELECT ↗';
+  });
+}
+function switchHost(h) {
+  hostGeneration++; clearTimeout(pollTimer); pollController?.abort();
+  current = h; writeSetting('host_sel', hostKey(h)); markFleet();
+  diskTempSelection = null; diskTempMode = 'multiple';
+  hist.length = 0; last = null; iface = null; disk = null; sensorMeta = []; sensorKey = '';
+  renderStorage({enabled:false});
+  document.getElementById('hostname').textContent = h.name; document.getElementById('sysmeta').textContent = h.addr;
+  statEl.textContent = '连接中…'; dot.classList.add('off'); page.classList.remove('stale');
+  for (const c of tempCharts) { c.observer.disconnect(); c.card.remove(); } tempCharts.length = 0;
+  for (const c of [cpuChart, memChart, netChart, ioChart, loadChart]) { c.hover = null; c.update([]); c.table.textContent = ''; }
+  coreChart.hover = null; coreChart.update([]); coreChart.table.textContent = ''; hideTip();
+  for (const id of ['iface', 'disk', 'tbody', 'pbody', 'topcpu', 'topmem', 'pcount']) document.getElementById(id).textContent = '';
+  const labels = ['CPU', '内存', '负载', '温度', '网络', '磁盘 IO', '存储', '进程'];
+  TILES.forEach((id, i) => fill(id, { label: labels[i], value: '–', sub: '等待所选主机数据…' }));
+  refreshPower();
+  poll();
+}
+hostSel.addEventListener('change', () => switchHost(HOSTS.find(h => hostKey(h) === hostSel.value) || SELF));
+// modal
+const modal = document.getElementById('hostModal'), hostText = document.getElementById('hostText');
+document.getElementById('hostmgr').addEventListener('click', () => {
+  const bi = document.getElementById('builtins'); bi.textContent = '';
+  const rows = [SELF, ...builtinHosts];
+  for (const h of rows) { const d = document.createElement('div'); d.className = 'h'; const a = document.createElement('span'); a.textContent = (h.self ? '本机' : '内置') + ' · ' + h.name; const b = document.createElement('span'); b.textContent = `${h.addr}:${h.gport}`; d.append(a, b); bi.appendChild(d); }
+  hostText.value = loadUserHosts().map(h => [h.name, h.addr, h.gport, h.dport].join(', ')).join('\n');
+  document.getElementById('hostError').textContent = ''; modal.hidden = false; hostText.focus();
+});
+document.getElementById('hostCancel').addEventListener('click', () => modal.hidden = true);
+modal.addEventListener('click', e => { if (e.target === modal) modal.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) { modal.hidden = true; document.getElementById('hostmgr').focus(); } });
+document.getElementById('hostSave').addEventListener('click', () => {
+  try {
+    const list = parseHosts(hostText.value);
+    if (!writeSetting('hosts_user', JSON.stringify(list))) throw new Error('浏览器禁止本地存储，无法保存主机列表');
+    modal.hidden = true; rebuildHosts(); document.getElementById('hostmgr').focus();
+  } catch (e) { document.getElementById('hostError').textContent = e.message; }
+});
+
+/* ---------- power controls ---------- */
+const powerMessage = document.getElementById('powerMessage');
+const powerModal = document.getElementById('powerModal');
+const powerPassword = document.getElementById('powerPassword');
+let powerConfig = null, powerBusy = false, powerOperation = null, powerGeneration = 0, powerLoading = false;
+const dashboardURL = h => `${location.protocol}//${h.addr}:${h.dport}`;
+async function refreshPower() {
+  const generation = ++powerGeneration, h = current;
+  powerLoading = true;
+  powerConfig = null; powerModal.hidden = true; powerPassword.value = '';
+  for (const id of ['wakeBtn', 'shutdownBtn', 'rebootBtn', 'cancelShutdownBtn']) document.getElementById(id).disabled = true;
+  powerMessage.textContent = '正在检查电源控制…';
+  try {
+    // An online dashboard can send a wake packet even when the selected host is off.
+    const r = await fetch('power.json', {cache:'no-store', signal:AbortSignal.timeout(4000)});
+    if (!r.ok) throw new Error('当前看板尚未配置电源控制');
+    const cfg = await r.json();
+    if (generation !== powerGeneration) return;
+    if (!cfg.enabled) throw new Error('当前看板尚未启用电源控制');
+    const target = cfg.hosts.find(x => x.addr === h.addr);
+    if (!target) throw new Error('这台主机尚未配置电源控制');
+    powerConfig = {relay:cfg, target, remote:null, wakeURL:new URL('api/power', location.href).href};
+    document.getElementById('wakeBtn').disabled = !target.wake_enabled || powerBusy;
+    powerMessage.textContent = target.wake_note || '关机或重启前请保存工作；唤醒需要电源和网络保持连接。';
+    if (target.wake_dashboard) {
+      try {
+        const sender = cfg.hosts.find(x => x.addr === target.wake_dashboard);
+        if (!sender) throw new Error('未配置唤醒发送端');
+        const senderURL = dashboardURL({...sender,dport:sender.dport || 61209});
+        const r = await fetch(senderURL + '/power.json', {cache:'no-store',signal:AbortSignal.timeout(4000)});
+        if (!r.ok) throw new Error('唤醒发送端无法连接');
+        const info = await r.json();
+        if (generation !== powerGeneration) return;
+        if (!info.enabled || info.addr !== sender.addr || !info.hosts.some(x => x.addr === h.addr && x.wake_enabled)) throw new Error('发送端尚未准备好');
+        powerConfig.relay = info; powerConfig.wakeURL = senderURL + '/api/power';
+        document.getElementById('wakeBtn').disabled = powerBusy;
+      } catch (e) {
+        if (generation !== powerGeneration) return;
+        document.getElementById('wakeBtn').disabled = true;
+        powerMessage.textContent += ' 唤醒发送端当前不可达，请使用另一台在线主机的看板。';
+      }
+    }
+    try {
+      const remote = await fetch(dashboardURL(h) + '/power.json', {cache:'no-store', signal:AbortSignal.timeout(4000)});
+      if (!remote.ok) return;
+      const info = await remote.json();
+      if (generation !== powerGeneration) return;
+      if (info.addr !== h.addr || !info.enabled) return;
+      powerConfig.remote = info;
+      document.getElementById('shutdownBtn').disabled = !info.shutdown || powerBusy;
+      document.getElementById('rebootBtn').disabled = !info.reboot || powerBusy;
+      document.getElementById('cancelShutdownBtn').disabled = !(info.shutdown || info.reboot) || powerBusy;
+      if (!info.shutdown) powerMessage.textContent += ' 此主机关机权限尚未配置。';
+      if (!info.reboot) powerMessage.textContent += ' 此主机重启尚未启用。';
+    } catch { if (generation === powerGeneration) powerMessage.textContent += ' 当前无法连接主机，恢复在线后可关机或重启。'; }
+  } catch (e) { if (generation === powerGeneration) powerMessage.textContent = e.message; }
+  finally {if (generation === powerGeneration) powerLoading = false;}
+}
+function openPower(action) {
+  if (!powerConfig || powerBusy) return;
+  const cfg = action === 'wake' ? powerConfig.relay : powerConfig.remote;
+  if (!cfg) return;
+  powerOperation = {action, host:{...current}, generation:powerGeneration, url:action === 'wake' ? powerConfig.wakeURL : dashboardURL(current) + '/api/power'};
+  document.getElementById('powerTitle').textContent = {shutdown:'确认关机',reboot:'确认重启',cancel:'取消电源计划',wake:'唤醒主机'}[action];
+  document.getElementById('powerTarget').textContent = `${current.name} · ${current.addr}`;
+  document.getElementById('powerExplanation').textContent = action === 'shutdown' ? '确认后将在 1 分钟后关机，可在关机前取消。请先保存工作。关闭当前看板所在主机后，请从其他在线主机的看板操作。' : action === 'reboot' ? '确认后将在 1 分钟后重启，可在重启前取消。请先保存工作；重启期间该主机上的服务会暂时中断。' : action === 'wake' ? (powerConfig.target.wake_note || '发送网络唤醒包，随后等待主机恢复在线。') : '取消这台主机上待执行的关机或重启计划。';
+  powerPassword.hidden = !cfg.password_required; powerPassword.value = '';
+  document.getElementById('powerError').textContent = '';
+  document.getElementById('powerConfirm').textContent = {shutdown:'确认，1 分钟后关机',reboot:'确认，1 分钟后重启',cancel:'确认取消计划',wake:'发送唤醒包'}[action];
+  powerModal.hidden = false;
+  (cfg.password_required ? powerPassword : document.getElementById('powerClose')).focus();
+}
+for (const [id, action] of [['wakeBtn','wake'],['shutdownBtn','shutdown'],['rebootBtn','reboot'],['cancelShutdownBtn','cancel']]) document.getElementById(id).addEventListener('click', () => openPower(action));
+document.getElementById('powerClose').addEventListener('click', () => {powerModal.hidden = true; powerPassword.value = '';});
+document.addEventListener('keydown', e => {if (e.key === 'Escape' && !powerBusy) {powerModal.hidden = true; powerPassword.value = '';}});
+document.getElementById('powerConfirm').addEventListener('click', async () => {
+  const op = powerOperation;
+  if (powerBusy || !op || op.generation !== powerGeneration || hostKey(op.host) !== hostKey(current)) return;
+  powerBusy = true; document.getElementById('powerConfirm').disabled = true;
+  try {
+    const password = powerPassword.value; powerPassword.value = '';
+    const r = await fetch(op.url, {method:'POST', headers:{'Content-Type':'application/json','X-Monitor-Action':'1'}, body:JSON.stringify({action:op.action,target:op.host.addr,password}), signal:AbortSignal.timeout(12000)});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || '操作未成功');
+    if (op.generation === powerGeneration) {powerModal.hidden = true; powerMessage.textContent = data.message;}
+  } catch (e) {
+    if (op.generation === powerGeneration) document.getElementById('powerError').textContent = e.name === 'TimeoutError' ? '未收到操作回执，请检查主机状态后再试。' : e.message;
+  } finally {powerBusy = false; document.getElementById('powerConfirm').disabled = false;}
+});
 
 /* ---------- controls ---------- */
 function seg(id, cb) { const el = document.getElementById(id); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; for (const x of el.children) x.classList.toggle('on', x === b); cb(+b.dataset.v); }); }
@@ -563,11 +1089,22 @@ document.getElementById('disk').addEventListener('change', e => { disk = e.targe
 document.getElementById('q').addEventListener('input', () => render());
 document.getElementById('grp').addEventListener('change', () => render());
 document.getElementById('more').addEventListener('click', () => { showAll = !showAll; render(); });
-const themes = ['auto', 'dark', 'light'], themeBtn = document.getElementById('theme');
-function applyTheme(t) { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t; themeBtn.textContent = '主题：' + { auto: '自动', dark: '深色', light: '浅色' }[t]; localStorage.setItem('theme', t); render(); }
-themeBtn.addEventListener('click', () => applyTheme(themes[(themes.indexOf(localStorage.getItem('theme') || 'auto') + 1) % 3]));
-applyTheme(localStorage.getItem('theme') || 'auto');
-poll();
+const themes = ['dark', 'light'], themeBtn = document.getElementById('theme');
+let activeTheme = 'dark';
+function applyTheme(t) {
+  activeTheme = themes.includes(t) ? t : 'dark';
+  document.documentElement.dataset.theme = activeTheme;
+  themeBtn.textContent = { dark: '夜航模式', light: '日光模式' }[activeTheme];
+  writeSetting('nexus_theme', activeTheme); render();
+}
+themeBtn.addEventListener('click', () => applyTheme(themes[(themes.indexOf(activeTheme) + 1) % themes.length]));
+applyTheme(readSetting('nexus_theme') || 'dark');
+document.querySelectorAll('.rail nav a').forEach(link => link.addEventListener('click', () => {
+  document.querySelectorAll('.rail nav a').forEach(a => a.classList.toggle('on',a === link));
+}));
+function updateClock() {document.getElementById('consoleClock').textContent = new Date().toLocaleTimeString('zh-CN',{hour12:false});}
+updateClock(); setInterval(updateClock,1000);
+fetch('hosts.json', { cache: 'no-store', signal: AbortSignal.timeout(4000) }).then(r => r.ok ? r.json() : null).then(j => { if (j && Array.isArray(j.hosts)) builtinHosts = validHosts(j.hosts); }).catch(() => {}).finally(() => { rebuildHosts(); });
 </script>
 </body>
 </html>
