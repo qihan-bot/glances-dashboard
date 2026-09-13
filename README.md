@@ -88,6 +88,19 @@ retains its last readings marked as stale; it never substitutes Glances labels,
 zeros, or repeated historical values as new temperature observations. Charts and
 sparklines leave gaps, and sample tables display unavailable observations explicitly.
 
+## NVIDIA GPU temperature and power (optional)
+
+Hosts with `nvidia-smi` on the `PATH` get a `GPU · <name>` core temperature
+(`gpu.edge`) and power draw (`gpu.power`, W) in `/sensors.json`, read from
+`nvidia-smi --query-gpu` once per two seconds and shared by all requests. Nothing
+is configured or written; hosts without `nvidia-smi` report nothing. Warning and
+critical limits come only from the classic `GPU Slowdown Temp` / `GPU Shutdown Temp`
+lines of `nvidia-smi -q -d TEMPERATURE`. A DGX Spark (GB10, driver 580) reports those
+as N/A and only a `T.Limit` headroom, which is not a threshold, so no limit is shown
+there. A failed query marks the last known GPUs unavailable instead of repeating
+values. On the GB10 the Grace CPU has no hwmon temperature; its ACPI zones stay in
+the unverified diagnostic group.
+
 ## Power controls (optional)
 
 To move the main dashboard entry to another deployed host, set

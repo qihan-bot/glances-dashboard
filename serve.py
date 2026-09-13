@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import ec
 import fan
+import nvgpu
 import power
 import smart
 import spd
@@ -207,7 +208,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/sensors.json":
             storage = smart.collector.snapshot()
-            body = json.dumps({"sensors": sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage),
+            body = json.dumps({"sensors": sensors() + nvgpu.sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage),
                                "fans": fan.fans(), "storage": storage}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
