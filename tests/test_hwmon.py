@@ -75,3 +75,19 @@ class HwmonTests(unittest.TestCase):
                 rows = serve.sensors()
             self.assertEqual(len({s['id'] for s in rows}), 2)
             self.assertTrue(all(s['quality'] == 'unverified' for s in rows))
+
+    def test_duplicate_driver_names_get_distinct_ids_and_single_ones_keep_theirs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for i in range(2):
+                hw = Path(tmp) / f'hwmon{i}'; hw.mkdir()
+                (hw / 'name').write_text('mlx5'); (hw / 'temp1_input').write_text('49000'); (hw / 'temp1_label').write_text('asic')
+            hw = Path(tmp) / 'hwmon2'; hw.mkdir()
+            (hw / 'name').write_text('mt7925_phy0'); (hw / 'temp1_input').write_text('42000')
+            with patch.object(serve, 'HWMON', Path(tmp)):
+                rows = serve.sensors()
+            ids = [s['id'] for s in rows]
+            self.assertEqual(len(set(ids)), 3)
+            self.assertIn('mt7925_phy0.temp1', ids)
+            mlx = [s for s in rows if s['source']['driver'] == 'mlx5']
+            self.assertTrue(all(s['id'].startswith('mlx5.') and s['id'] != 'mlx5.asic' for s in mlx))
+            self.assertNotEqual(mlx[0]['device'], mlx[1]['device'])

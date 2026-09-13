@@ -64,7 +64,9 @@ def sensors():
     sampled_at = datetime.now(timezone.utc).isoformat()
     excluded = set(os.environ.get("MONITOR_SENSOR_EXCLUDE", "").split(","))
     ignore_limits = set(os.environ.get("MONITOR_SENSOR_IGNORE_LIMITS", "").split(","))
-    for hw in sorted(HWMON.glob("hwmon*"), key=lambda p: int(p.name[5:])):
+    chips = sorted(HWMON.glob("hwmon*"), key=lambda p: int(p.name[5:]))
+    dup = {n for n in (read(hw / "name", "") for hw in chips) if sum(read(h / "name", "") == n for h in chips) > 1}
+    for hw in chips:
         name = read(hw / "name", "")
         dev = (hw / "device").resolve().name if (hw / "device").exists() else ""
         if name == "nvme":
@@ -80,8 +82,8 @@ def sensors():
             device, group, did = "主板 · IT8613E", "board", name
         elif name.startswith("iwlwifi"):
             device, group, did = "Wi-Fi · 无线网卡", "core", "wifi"
-        else:
-            device, group, did = f"{name}", "other", name
+        else:  # several chips with one driver name (e.g. mlx5 ports) must not share ids
+            device, group, did = (f"{name} · {dev or hw.name}", "other", f"{name}.{dev or hw.name}") if name in dup else (name, "other", name)
         for t in sorted(hw.glob("temp*_input")):
             if f"{name}:{t.name[:-6]}" in excluded:
                 continue

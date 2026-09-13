@@ -811,10 +811,10 @@ function render() {
     const groupMax = g => { const v = sensorMeta.filter(x => x.group === g).map(x => cur.temp[x.id]).filter(v => v != null); return v.length ? Math.max(...v) : null; };
     const bT = groupMax('board'), mT = groupMax('memory');
     const nv = sensorMeta.filter(x => (x.group === 'nvme' && /composite/.test(x.id)) || x.group === 'sata').map(x => cur.temp[x.id]).filter(v => v != null);
-    const parts = []; if (gpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`); const fz = fanMeta.find(f => f.quality === 'reported' && !f.stale && f.duty != null); if (fz) parts.push(fz.rpm != null ? `风扇 ${fz.duty.toFixed(0)}% · ${fz.rpm} rpm` : `风扇 ${fz.duty.toFixed(0)}%`);
-    const main = cpuT ?? tmax(cur);
-    fill('temp', { label: cpuT != null ? 'CPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
-      value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? tmax(x) }); }
+    const parts = []; if (gpuT != null && cpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`); const fz = fanMeta.find(f => f.quality === 'reported' && !f.stale && f.duty != null); if (fz) parts.push(fz.rpm != null ? `风扇 ${fz.duty.toFixed(0)}% · ${fz.rpm} rpm` : `风扇 ${fz.duty.toFixed(0)}%`);
+    const main = cpuT ?? gpuT ?? tmax(cur);
+    fill('temp', { label: cpuT != null ? 'CPU 温度' : gpuT != null ? 'GPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
+      value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? x.temp['gpu.edge'] ?? tmax(x) }); }
   { const n = netOf(cur); const ifs = iface === 'all' ? d.network : d.network.filter(x => x.interface_name === iface);
     const rxT = ifs.reduce((a, x) => a + (x.bytes_recv_gauge || 0), 0), txT = ifs.reduce((a, x) => a + (x.bytes_sent_gauge || 0), 0);
     fill('net', { label: '网络', hint: iface === 'all' ? '全部网卡' : iface, values: ['↓ ' + fmtRate(n.rx), '↑ ' + fmtRate(n.tx)],
