@@ -66,6 +66,31 @@ class HwmonTests(unittest.TestCase):
                 self.assertIsNone(rows['cpu.' + name]['value'])
                 self.assertEqual(rows['cpu.' + name]['quality'], 'unavailable')
 
+    def test_nvme_non_positive_channel_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dev = Path(tmp) / 'nvme1'; dev.mkdir()
+            hw = Path(tmp) / 'hwmon0'; hw.mkdir(); (hw / 'device').symlink_to(dev)
+            fields = {'name': 'nvme', 'temp1_input': '37850', 'temp1_label': 'Composite',
+                      'temp3_input': '-150', 'temp3_label': 'Sensor 2'}
+            for name, value in fields.items(): (hw / name).write_text(value)
+            with patch.object(serve, 'HWMON', Path(tmp)):
+                rows = {s['id']: s for s in serve.sensors()}
+            self.assertEqual(rows['nvme1.composite']['value'], 37.85)
+            self.assertIsNone(rows['nvme1.sensor_2']['value'])
+            self.assertEqual(rows['nvme1.sensor_2']['quality'], 'unavailable')
+
+    def test_amdgpu_ppt_on_apu_is_labelled_package_power(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hw = Path(tmp) / 'hwmon0'; hw.mkdir()
+            for name, value in {'name': 'amdgpu', 'temp1_input': '45000', 'temp1_label': 'edge',
+                                'power1_input': '28177000', 'power1_label': 'PPT'}.items():
+                (hw / name).write_text(value)
+            for cpu, label in [('AMD Ryzen 5 7640HS w/ Radeon 760M Graphics', 'APU 封装功耗'), ('AMD Ryzen 9 7950X 16-Core Processor', '功耗')]:
+                with self.subTest(cpu=cpu), patch.object(serve, 'HWMON', Path(tmp)), patch.object(serve, 'cpu_model', lambda: cpu):
+                    power = next(s for s in serve.sensors() if s['id'] == 'gpu.power')
+                    self.assertEqual(power['label'], label)
+                    self.assertAlmostEqual(power['value'], 28.177)
+
     def test_multiple_acpi_zones_do_not_share_sensor_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             for i in range(2):

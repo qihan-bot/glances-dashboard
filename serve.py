@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import ec
 import fan
+import health
 import nvgpu
 import power
 import smart
@@ -98,6 +99,8 @@ def sensors():
                 val, quality, note = None, 'unavailable', '硬件报告传感器故障，未更新'
             elif name == 'acpitz':
                 quality, note = 'unverified', '固件热区不代表主板测点；未核实，不计入温度曲线'
+            elif name == 'nvme' and val <= 0:  # e.g. ZHITAI TiPlus7100 Sensor 2 reads -0.1 °C: channel not implemented
+                val, quality, note = None, 'unavailable', '硬盘报告 ≤0 °C，视为未实现的测点'
             label = read(base + "_label", t.name[:-6]) or t.name[:-6]
             sid = f"{did}.{re.sub(r'[^a-z0-9]+', '_', label.lower())}"
             warn, crit, assumed = milli(base + "_max"), milli(base + "_crit"), False
@@ -123,8 +126,10 @@ def sensors():
         if name == "amdgpu":
             pw = read(hw / "power1_input")
             if pw:
+                # On an APU, amdgpu's PPT channel is SMU socket power: CPU + GPU + SoC, not the GPU alone.
+                apu = read(hw / "power1_label") == "PPT" and "Radeon" in cpu_model()
                 out.append({"id": "gpu.power", "device_id": "gpu", "device": f"GPU · {gpu_model(hw)}", "group": "power",
-                            "label": "功耗", "value": int(pw) / 1e6, "unit": "W"})
+                            "label": "APU 封装功耗" if apu else "功耗", "value": int(pw) / 1e6, "unit": "W"})
     order = {"cpu": 0, "gpu": 1, "board": 2, "ec": 2, "wifi": 3}
     out.sort(key=lambda x: (order.get(x["device_id"], 10), x["device_id"]))
     return out
@@ -216,7 +221,7 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/sensors.json":
             storage = smart.collector.snapshot()
             body = json.dumps({"sensors": sensors() + nvgpu.sensors() + ec.sensors() + spd.sensors() + smart.temperature_sensors(storage),
-                               "fans": fan.fans(), "storage": storage}).encode()
+                               "fans": fan.fans(), "storage": storage, "system": health.snapshot()}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")

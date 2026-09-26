@@ -9,14 +9,17 @@ process list, with live charts and in-browser history (up to one hour).
 
 ## What you get
 
-- **Stat tiles**: CPU, memory + swap, load, CPU/GPU/board temperature, network, disk I/O,
-  storage, processes (with the current top CPU and top memory process).
-- **Live charts**: CPU stacked by user/system/iowait, per-core columns, memory/swap,
-  network throughput, disk I/O, load averages, and temperatures grouped by device
-  (CPU/GPU and identified board chips, plus a combined drive chart with device channel labels).
+- **Stat tiles**: CPU (+ load averages), memory + swap and swap-in/out rate, resource
+  pressure (PSI), CPU/GPU/board temperature, network (+ link utilization, TCP
+  retransmissions, errors/drops), disk I/O (+ per-request latency), storage, and system
+  health (failed systemd units, OOM kills, pending reboot, zombie/uninterruptible processes).
+- **Live charts**: CPU stacked by user/system/iowait, per-core columns, resource pressure,
+  memory/swap, network throughput, disk throughput, disk latency, and temperatures grouped
+  by device (CPU/GPU and identified board chips, plus one composite line per drive).
 - **Hardware temperature table**: every hwmon sensor, named by device model, with
   warning/critical thresholds and a distance-to-critical meter.
-- **Process table**: sortable, filterable, optional aggregation by program.
+- **Process table**: sortable, filterable, optional aggregation by program; the two
+  ranking cards above it sum same-name processes (the table keeps the per-PID view).
 - **Host switcher**: shared presets plus browser-local hosts, custom ports, and a remembered selection. Switching clears old samples and reconnects immediately.
 - Crosshair tooltips on every chart, a data-table view per chart, light/dark theme.
 
@@ -87,6 +90,37 @@ out after eight seconds and retry automatically. An unavailable sensor sidecar
 retains its last readings marked as stale; it never substitutes Glances labels,
 zeros, or repeated historical values as new temperature observations. Charts and
 sparklines leave gaps, and sample tables display unavailable observations explicitly.
+
+## Saturation and health signals
+
+Glances reports utilization. `health.py` adds the saturation and error side to
+`/sensors.json` under `system`, read without root on each request:
+
+| Signal | Source | Shown as |
+|---|---|---|
+| Resource pressure | `/proc/pressure/{cpu,memory,io}` | tile + chart, `some` avg10 (60 s in the tile text) |
+| Swap-in / swap-out, OOM kills | `/proc/vmstat` (`pswpin`, `pswpout`, `oom_kill`) | memory tile rate; health tile count since boot |
+| TCP retransmissions | `/proc/net/snmp` (`RetransSegs / OutSegs`) | network tile, host-wide |
+| Interface errors / drops | `/proc/net/dev` | network tile, per selected interface |
+| Failed units | `systemctl [--user] list-units --failed --output=json`, cached 30 s | health tile, hover lists descriptions |
+| Pending reboot | `/run/reboot-required` (Ubuntu) | health tile |
+
+Counters are cumulative; the page derives rates from consecutive samples using the
+host's monotonic clock (`mono`), so the first sample after loading or switching hosts
+shows no rate. PSI `some` is the share of time in which at least one task stalled on
+the resource; unlike load average it is not inflated by core count or idle
+uninterruptible sleepers. High memory use with 0 % memory PSI means no task is yet
+waiting for memory. Tile thresholds (10 / 25 / 50 %) are heuristics, not kernel
+limits, and always carry an icon. User-manager units are those of the account running
+`monitor-web.service`.
+
+Disk latency is Glances' per-refresh `read_time / read_count` (and write), i.e. mean
+time per completed request; intervals without requests are gaps, not zero. Busy %
+(`io_ticks`) is not shown because it saturates on NVMe drives long before the
+device does. Partitions, device-mapper volumes and pod/bridge/veth interfaces are
+left out of the selectors and totals because they double-count their parent device.
+A sidecar without the `system` block (older deployments, kernels without PSI) falls
+back to the load-average tile and chart, and the health checks show 未采集.
 
 ## NVIDIA GPU temperature and power (optional)
 
@@ -392,9 +426,16 @@ The dashboard defaults to a 5-second sampling interval and a 30-minute time wind
 
 Drive temperatures share one chart. Each drive has a model/name tag, with
 single-selection, multi-selection and select-all controls. At least one drive
-remains selected. Colors identify drives; line dashes distinguish their composite,
-individual sensor channels. Selections preserve collected history and reset when
+remains selected. Each drive is one line: its composite temperature, the reading the
+drive's own warning/critical limits and throttling apply to (the first sensor when a
+drive has no composite channel). Selections preserve collected history and reset when
 switching hosts. The separate hardware table retains all available sensor values.
+NVMe channels reporting 0 °C or below are marked unavailable: a ZHITAI TiPlus7100
+reports `Sensor 2` as -0.1 °C at every read, an unimplemented channel.
+
+On AMD APUs (CPU model names a Radeon GPU), amdgpu's `PPT` power channel is the SMU's
+socket power for the whole package, so it is labelled APU package power rather than
+GPU power. On a discrete card it stays GPU power.
 
 Theme switching cycles only between dark and light. Invalid saved preferences
 (including the legacy `undefined` value) recover to dark, and switching continues

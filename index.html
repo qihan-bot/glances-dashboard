@@ -198,7 +198,7 @@ header .status{margin-left:auto;font:10px var(--mono);gap:7px;display:flex}
 .card{border:1px solid var(--border);border-radius:3px;background:var(--surface);padding:18px;position:relative}
 .tiles{gap:12px;margin-bottom:24px}.tile{min-height:164px;overflow:hidden;--tile-color:var(--s1)}
 .tile::before{border-color:var(--tile-color);width:8px;height:8px}.tile::after{content:attr(data-code);position:absolute;right:15px;bottom:13px;color:var(--muted);opacity:.3;font:9px var(--mono);letter-spacing:2px;pointer-events:none}
-.tile[data-code=MEM]{--tile-color:var(--s2)}.tile[data-code=LOAD],.tile[data-code=FS]{--tile-color:var(--s3)}.tile[data-code=TEMP],.tile[data-code=PROC]{--tile-color:var(--s4)}
+.tile[data-code=MEM]{--tile-color:var(--s2)}.tile[data-code=PSI],.tile[data-code=FS]{--tile-color:var(--s3)}.tile[data-code=TEMP],.tile[data-code=HEALTH]{--tile-color:var(--s4)}
 .tile .label{font:10px var(--mono);gap:8px;align-items:center}.tile .name{color:var(--tile-color);font-weight:500;white-space:nowrap}
 .tile .label .hint{font-size:9px;color:var(--muted)}
 .tile .value{font:500 36px/1.1 var(--mono);letter-spacing:-1.6px;margin:17px 0 8px;color:var(--ink)}
@@ -206,6 +206,7 @@ header .status{margin-left:auto;font:10px var(--mono);gap:7px;display:flex}
 .tile .sub{font-size:10px;line-height:1.65;color:var(--muted);position:relative;z-index:1}.tile .foot{padding-top:10px}
 .tile canvas{height:30px}.meter{height:4px;border-radius:0;background:var(--track)}.meter i{border-radius:0}
 .mrow{font-size:9px;gap:6px}.mrow .k{min-width:35px;max-width:70px;overflow:hidden;text-overflow:ellipsis}.mrow .st{min-width:50px;font-size:9px}.st b{font-weight:500}
+.chk .v{flex:1;min-width:0;text-align:right;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chk .v.good{color:var(--good)}.chk .v.warn{color:var(--warn)}.chk .v.serious{color:var(--serious)}.chk .v.critical{color:var(--critical)}
 .charts{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;margin-bottom:26px}
 .chart{padding:20px 20px 12px;background:linear-gradient(155deg,var(--surface),var(--panel));min-width:0}
 .chart-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;min-width:0}
@@ -352,8 +353,8 @@ footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid 
 
 <div class="section-label" id="processes"><b>04 / PROCESSES</b><h2>进程与任务</h2></div>
 <div class="procs">
-  <div class="card"><h2 style="font-size:14px;margin:0 0 8px">CPU 占用最高的进程 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">按 PID · CPU%</span></h2><div class="bars" id="topcpu"></div></div>
-  <div class="card"><h2 style="font-size:14px;margin:0 0 8px">内存占用最高的进程 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">按 PID · RSS</span></h2><div class="bars" id="topmem"></div></div>
+  <div class="card"><h2 style="font-size:14px;margin:0 0 8px">CPU 占用最高的程序 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">同名进程合计 · CPU%</span></h2><div class="bars" id="topcpu"></div></div>
+  <div class="card"><h2 style="font-size:14px;margin:0 0 8px">内存占用最高的程序 <span class="u" style="color:var(--muted);font-weight:400;font-size:12px">同名进程合计 · RSS（共享页会重复计入）</span></h2><div class="bars" id="topmem"></div></div>
 </div>
 
 <div class="card ptable">
@@ -394,7 +395,14 @@ const UNITS = {
   temp:  { axis: v => v.toFixed(0) + '°', tip: v => v.toFixed(0) + ' °C', min: 60 },
   load:  { axis: v => v.toFixed(1), tip: v => v.toFixed(2), min: 1 },
   rpm:   { axis: v => v.toFixed(0), tip: v => v.toFixed(0) + ' rpm', min: 1000 },
+  psi:   { axis: v => v.toFixed(0) + '%', tip: v => v.toFixed(2) + '%', min: 5 },
+  ms:    { axis: v => (v >= 10 || v === 0 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + ' ms', tip: v => v.toFixed(2) + ' ms', min: 1 },
 };
+// PSI some avg10: share of wall time in which at least one task stalled on the resource. Thresholds are heuristics.
+const psiStatus = p => p < 10 ? ['good','● 正常'] : p < 25 ? ['warn','▲ 偏高'] : p < 50 ? ['serious','▲ 紧张'] : ['critical','■ 告急'];
+// Pod/bridge/veth links double-count host traffic; partitions and device-mapper volumes double-count their disk.
+const realIface = n => !/^(lo$|cali|veth|docker|br-|virbr|cni|flannel|vxlan|kube|tunl|cilium|lxc)/.test(n);
+const wholeDisk = n => !/^(loop|ram|zram|dm-)/.test(n) && !/^(nvme\d+n\d+p\d+|mmcblk\d+p\d+|[shv]d[a-z]+\d+|md\d+p\d+)$/.test(n);
 
 /* ---------- line chart ---------- */
 class LineChart {
@@ -546,14 +554,14 @@ function showTip(canvas, x, title, lines) {
 function hideTip() { gtip.hidden = true; }
 
 /* ---------- tiles ---------- */
-const TILES = ['cpu', 'mem', 'load', 'temp', 'net', 'io', 'fs', 'proc'];
+const TILES = ['cpu', 'mem', 'psi', 'temp', 'net', 'io', 'fs', 'health'];
 const tilesEl = document.getElementById('tiles'), tileEls = {};
 for (const id of TILES) {
   const el = document.createElement('div'); el.className = 'card tile'; el.dataset.code = id.toUpperCase();
   el.innerHTML = `<div class="label"><span class="name"></span><span class="hint"></span></div><div class="value"></div><div class="sub"></div><div class="foot"><div class="meters"></div><canvas hidden></canvas></div>`;
   tilesEl.appendChild(el); tileEls[id] = el;
 }
-// o: { label, hint, value | values:[..], sub, meters:[{k, pct, text}], spark: sample=>number }
+// o: { label, hint, value | values:[..], sub, meters:[{k, pct, text, status}], checks:[{k, text, cls}], spark: sample=>number }
 function fill(id, o) {
   const el = tileEls[id];
   el.querySelector('.name').textContent = o.label; el.querySelector('.hint').textContent = o.hint || '';
@@ -565,9 +573,15 @@ function fill(id, o) {
     const row = document.createElement('div'); row.className = 'mrow';
     const k = document.createElement('span'); k.className = 'k'; k.textContent = r.k;
     const mt = document.createElement('div'); mt.className = 'meter'; const i = document.createElement('i');
-    const [cls, txt] = status(r.pct); i.style.width = Math.min(100, r.pct) + '%'; i.style.background = cls === 'good' ? 'var(--s1)' : `var(--${cls})`; mt.appendChild(i);
+    const [cls, txt] = (r.status || status)(r.pct); i.style.width = Math.min(100, r.pct) + '%'; i.style.background = cls === 'good' ? 'var(--s1)' : `var(--${cls})`; mt.appendChild(i);
     const st = document.createElement('span'); st.className = 'st ' + (r.text != null && cls === 'good' ? '' : cls); const b = document.createElement('b'); b.textContent = r.text ?? txt; st.appendChild(b);
     row.append(k, mt, st); m.appendChild(row);
+  }
+  for (const r of (o.checks || [])) {
+    const row = document.createElement('div'); row.className = 'mrow chk'; row.title = r.title || r.text;
+    const k = document.createElement('span'); k.className = 'k'; k.textContent = r.k;
+    const v = document.createElement('span'); v.className = 'v ' + (r.cls || ''); v.textContent = r.text;
+    row.append(k, v); m.appendChild(row);
   }
   const c = el.querySelector('canvas'); c.hidden = !o.spark; if (o.spark) drawSpark(c, hist.slice(-60).map(o.spark));
 }
@@ -585,15 +599,27 @@ const chartsEl = document.getElementById('charts');
 const cpuChart = new LineChart(chartsEl, { title: 'CPU 使用率', unitLabel: '%，按类型堆叠', unit: 'pct', yMax: 100, stacked: true });
 cpuChart.setSeries([{ label: '用户态', color: '--s1', get: s => s.user }, { label: '内核态', color: '--s2', get: s => s.sys }, { label: 'IO 等待', color: '--s3', get: s => s.iowait }]);
 const coreChart = new ColumnChart(chartsEl, '每核心使用率');
+const pressureChart = new LineChart(chartsEl, { title: '资源压力 · PSI', unit: 'psi' });
+let pressureMode = null;
+function setPressureMode(mode) { // PSI when the sidecar reports it; load average otherwise (old sidecar, no PSI kernel).
+  if (mode === pressureMode) return; pressureMode = mode;
+  const psi = mode === 'psi', c = pressureChart;
+  c.opts.unit = psi ? 'psi' : 'load'; c.opts.title = psi ? '资源压力 · PSI' : '系统负载';
+  c.card.querySelector('.chart-title').textContent = c.opts.title;
+  c.card.querySelector('.u').textContent = psi ? '% 时间有任务在等待 · 10 秒均值' : '相对核心数';
+  c.setSeries(psi ? [{ label: 'CPU', color: '--s1', get: s => s.psi?.cpu }, { label: '内存', color: '--s2', get: s => s.psi?.mem }, { label: 'IO', color: '--s3', get: s => s.psi?.io }]
+                  : [{ label: '1 分钟', color: '--s3', get: s => s.load1 }, { label: '5 分钟', color: '--s2', get: s => s.load5 }, { label: '15 分钟', color: '--s4', get: s => s.load15 }]);
+}
+setPressureMode('psi');
 const memChart = new LineChart(chartsEl, { title: '内存与 Swap', unitLabel: '%', unit: 'pct', yMax: 100 });
 memChart.setSeries([{ label: '内存', color: '--s2', get: s => s.mem }, { label: 'Swap', color: '--s4', get: s => s.swap }]);
 const netChart = new LineChart(chartsEl, { title: '网络吞吐', unitLabel: '每秒字节', unit: 'bytes' });
 netChart.setSeries([{ label: '下行', color: '--s1', get: s => netOf(s).rx }, { label: '上行', color: '--s2', get: s => netOf(s).tx }]);
 const ioChart = new LineChart(chartsEl, { title: '磁盘 IO', unitLabel: '每秒字节', unit: 'bytes' });
 ioChart.setSeries([{ label: '读', color: '--s1', get: s => diskOf(s).r }, { label: '写', color: '--s2', get: s => diskOf(s).w }]);
-const loadChart = new LineChart(chartsEl, { title: '系统负载', unitLabel: '相对核心数', unit: 'load' });
-loadChart.setSeries([{ label: '1 分钟', color: '--s3', get: s => s.load1 }, { label: '5 分钟', color: '--s2', get: s => s.load5 }, { label: '15 分钟', color: '--s4', get: s => s.load15 }]);
-let sensorMeta = [], sensorKey = '';
+const latChart = new LineChart(chartsEl, { title: '磁盘延迟', unitLabel: '每个请求平均耗时 · 无请求时留空', unit: 'ms' });
+latChart.setSeries([{ label: '读', color: '--s1', get: s => diskOf(s).rl }, { label: '写', color: '--s2', get: s => diskOf(s).wl }]);
+let sensorMeta = [], sensorKey = '', lastSys = null, powerLabel = '';
 let fanMeta = [], fanKey = '', fanCharts = [];
 const tempCharts = [];
 let diskTempSelection = null, diskTempMode = 'multiple';
@@ -620,9 +646,11 @@ function ensureTempCharts() {
     c.setSeries(gp.items.map((x, i) => ({ key: x.id, label: gp.label(x), color: '--s' + (i + 1), get: s => s.temp[x.id] })));
     tempCharts.push(c);
   }
-  const disks = [...new Set(sensorMeta.filter(x => ['nvme','sata'].includes(x.group)).map(x => x.device_id))].map(id => ({
-    id, items: sensorMeta.filter(x => x.device_id === id).slice(0,4)
-  }));
+  // One line per drive: the composite reading is what the drive's own warning/throttle limits apply to.
+  const disks = [...new Set(sensorMeta.filter(x => ['nvme','sata'].includes(x.group)).map(x => x.device_id))].map(id => {
+    const own = sensorMeta.filter(x => x.device_id === id);
+    return { id, items: [own.find(x => x.id.endsWith('.composite')) || own[0]] };
+  });
   if (disks.length) {
     const chart = new LineChart(chartsEl, {title:'硬盘温度', unitLabel:'°C · 按硬盘筛选', unit:'temp'});
     chart.card.classList.add('disk-temperature-chart');
@@ -664,15 +692,14 @@ function configureDiskTemperatureChart(chart, disks) {
       refresh();
     }); tags.appendChild(button); tagButtons.push(button);
   });
-  const hint = document.createElement('p'); hint.className = 'disk-hint'; hint.textContent = '同一硬盘使用同色曲线；不同线型区分传感器。至少保留一块硬盘。';
+  const hint = document.createElement('p'); hint.className = 'disk-hint'; hint.textContent = '每块硬盘一条复合温度曲线（硬盘告警与降速所依据的读数）；各测点明细见下方硬件温度表。至少保留一块硬盘。';
   controls.append(toolbar,tags,hint); chart.card.insertBefore(controls,chart.legend);
   function refresh() {
     modeButtons.forEach(button => {const on = button.dataset.mode === diskTempMode; button.classList.toggle('on',on); button.setAttribute('aria-pressed',String(on));});
     tagButtons.forEach(button => {const on = diskTempSelection.has(button.dataset.diskId); button.classList.toggle('on',on); button.setAttribute('aria-pressed',String(on));});
     count.textContent = `${diskTempSelection.size} / ${ids.length} 块硬盘`;
-    chart.setSeries(disks.flatMap((disk,i) => diskTempSelection.has(disk.id) ? disk.items.map((sensor,j) => ({
-      key:sensor.id, label:`${disk.id} · ${sensor.label}`, color:`--s${i%4+1}`,
-      dash:[[],[6,3],[2,3],[9,3,2,3]][j%4], get:sample => sample.temp[sensor.id]
+    chart.setSeries(disks.flatMap((disk,i) => diskTempSelection.has(disk.id) ? disk.items.map(sensor => ({
+      key:sensor.id, label:`${disk.id} · ${sensor.label}`, color:`--s${i%4+1}`, get:sample => sample.temp[sensor.id]
     })) : []));
     chart.hover = null; hideTip(); chart.update(hist.filter(sample => sample.t >= Date.now() - range*1000));
   }
@@ -775,10 +802,28 @@ function drawSparkOn(c, rows) {
 }
 
 /* ---------- sample ---------- */
-function toSample(d, sens) {
-  const s = { t: Date.now(), cpu: d.cpu.total, user: d.cpu.user, sys: d.cpu.system, iowait: d.cpu.iowait, mem: d.mem.percent, swap: d.memswap.percent, load1: d.load.min1, load5: d.load.min5, load15: d.load.min15, net: {}, dsk: {}, temp: {} };
-  for (const n of d.network) s.net[n.interface_name] = { rx: n.bytes_recv_rate_per_sec || 0, tx: n.bytes_sent_rate_per_sec || 0 };
-  for (const n of d.diskio) s.dsk[n.disk_name] = { r: n.read_bytes_rate_per_sec || 0, w: n.write_bytes_rate_per_sec || 0 };
+function toSample(d, sens, sys) {
+  const s = { t: Date.now(), cpu: d.cpu.total, user: d.cpu.user, sys: d.cpu.system, iowait: d.cpu.iowait, mem: d.mem.percent, swap: d.memswap.percent, load1: d.load.min1, load5: d.load.min5, load15: d.load.min15, net: {}, dsk: {}, temp: {}, psi: null, nerr: {} };
+  for (const n of d.network) if (realIface(n.interface_name)) s.net[n.interface_name] = { rx: n.bytes_recv_rate_per_sec || 0, tx: n.bytes_sent_rate_per_sec || 0 };
+  // Glances read_time/read_count are deltas over its last refresh; their ratio is the mean latency per request.
+  const lat = (ms, n) => Number.isFinite(ms) && n > 0 ? ms / n : null;
+  for (const n of d.diskio) if (wholeDisk(n.disk_name)) s.dsk[n.disk_name] = { r: n.read_bytes_rate_per_sec || 0, w: n.write_bytes_rate_per_sec || 0, rl: lat(n.read_time, n.read_count), wl: lat(n.write_time, n.write_count) };
+  if (sys?.psi) s.psi = { cpu: sys.psi.cpu?.some?.avg10, mem: sys.psi.memory?.some?.avg10, io: sys.psi.io?.some?.avg10 };
+  if (sys) {
+    s.raw = { mono: sys.mono, vm: sys.vm, tcp: sys.tcp, net: sys.net };
+    const prev = hist[hist.length - 1]?.raw, dt = prev ? sys.mono - prev.mono : 0;
+    const rate = (a, b) => dt > 0 && Number.isFinite(a) && Number.isFinite(b) && a >= b ? (a - b) / dt : null;
+    if (prev) {
+      const pg = sys.page_size || 4096, si = rate(sys.vm?.pswpin, prev.vm?.pswpin), so = rate(sys.vm?.pswpout, prev.vm?.pswpout);
+      s.swapIn = si == null ? null : si * pg; s.swapOut = so == null ? null : so * pg;
+      const out = rate(sys.tcp?.out_segs, prev.tcp?.out_segs), re = rate(sys.tcp?.retrans_segs, prev.tcp?.retrans_segs);
+      s.retrans = out > 0 && re != null ? re / out * 100 : null;
+      for (const k in sys.net || {}) if (realIface(k) && prev.net?.[k]) {
+        const a = sys.net[k], b = prev.net[k];
+        s.nerr[k] = { err: rate(a.rx_errs + a.tx_errs, b.rx_errs + b.tx_errs), drop: rate(a.rx_drop + a.tx_drop, b.rx_drop + b.tx_drop) };
+      }
+    }
+  }
   if (sens) { for (const n of sens) { if (!Number.isFinite(n.value) || ['unverified','unavailable'].includes(n.quality)) continue; if (n.unit === 'W') s.gpuW = n.value; else s.temp[n.id] = n.value; } }
   s.fan = {}; for (const f of fanMeta) if (f.quality === 'reported' && !f.stale && f.duty != null) s.fan[f.id] = { duty: f.duty, rpm: f.rpm };
   return s;
@@ -800,38 +845,67 @@ function render() {
   // tiles
   const cur = hist[hist.length - 1];
   fill('cpu', { label: 'CPU', hint: `${(d.quicklook.cpu_hz_current / 1e9).toFixed(2)} GHz`, value: fmtPct(d.cpu.total),
-    sub: `用户 ${fmtPct(d.cpu.user)} · 内核 ${fmtPct(d.cpu.system)} · IO 等待 ${fmtPct(d.cpu.iowait)}`, spark: x => x.cpu });
+    sub: `用户 ${fmtPct(d.cpu.user)} · 内核 ${fmtPct(d.cpu.system)} · IO 等待 ${fmtPct(d.cpu.iowait)}\n负载 ${d.load.min1.toFixed(2)} / ${d.load.min5.toFixed(2)} / ${d.load.min15.toFixed(2)} · ${d.core.log} 逻辑核`, spark: x => x.cpu });
   fill('mem', { label: '内存', hint: `共 ${fmtBytes(d.mem.total)}`, value: fmtPct(d.mem.percent),
-    sub: `已用 ${fmtBytes(d.mem.used)} · 可用 ${fmtBytes(d.mem.available)} · 缓存 ${fmtBytes(d.mem.cached)}`,
+    sub: `已用 ${fmtBytes(d.mem.used)} · 可用 ${fmtBytes(d.mem.available)} · 缓存 ${fmtBytes(d.mem.cached)}` + (cur.swapIn != null ? `\n换入 ${fmtRate(cur.swapIn)} · 换出 ${fmtRate(cur.swapOut)}` : ''),
     meters: [{ k: '内存', pct: d.mem.percent }, { k: 'Swap', pct: d.memswap.percent, text: `${fmtBytes(d.memswap.used)} / ${fmtBytes(d.memswap.total)}` }] });
-  const lp = d.load.min1 / d.core.log * 100;
-  fill('load', { label: '负载', hint: `${d.core.log} 逻辑核`, value: d.load.min1.toFixed(2),
-    sub: `5 分钟 ${d.load.min5.toFixed(2)} · 15 分钟 ${d.load.min15.toFixed(2)} · 占核心 ${lp.toFixed(0)}% · ${status(lp)[1].slice(2)}`, spark: x => x.load1 });
+  const hasPsi = win.some(x => x.psi);
+  setPressureMode(hasPsi ? 'psi' : 'load');
+  if (hasPsi) {
+    const p = cur.psi ? lastSys.psi : null, rows = [['CPU', 'cpu'], ['内存', 'memory'], ['IO', 'io']];
+    const worst = cur.psi ? Math.max(...Object.values(cur.psi).filter(Number.isFinite)) : null;
+    const avg60 = k => p?.[k]?.some ? p[k].some.avg60.toFixed(2) + '%' : '–';
+    fill('psi', { label: '资源压力', hint: 'PSI · 10 秒均值', value: worst == null ? '–' : fmtPct(worst),
+      sub: p ? `有任务因等待资源而停顿的时间占比\n60 秒 CPU ${avg60('cpu')} · 内存 ${avg60('memory')} · IO ${avg60('io')}` : '传感器服务未响应 · 未更新',
+      meters: p ? rows.filter(([, k]) => p[k]?.some).map(([label, k]) => { const v = p[k].some.avg10, [cls, txt] = psiStatus(v); return { k: label, pct: v, text: (cls === 'good' ? '' : txt[0] + ' ') + fmtPct(v), status: psiStatus }; }) : [],
+      spark: x => x.psi ? Math.max(...Object.values(x.psi).filter(Number.isFinite)) : null });
+  } else {
+    const lp = d.load.min1 / d.core.log * 100;
+    fill('psi', { label: '负载', hint: `${d.core.log} 逻辑核 · 无 PSI 数据`, value: d.load.min1.toFixed(2),
+      sub: `5 分钟 ${d.load.min5.toFixed(2)} · 15 分钟 ${d.load.min15.toFixed(2)} · 占核心 ${lp.toFixed(0)}% · ${status(lp)[1].slice(2)}`, spark: x => x.load1 });
+  }
   { const cpuT = cur.temp['cpu.tctl'] ?? cur.temp['cpu.package_id_0'], gpuT = cur.temp['gpu.edge'];
     const groupMax = g => { const v = sensorMeta.filter(x => x.group === g).map(x => cur.temp[x.id]).filter(v => v != null); return v.length ? Math.max(...v) : null; };
     const bT = groupMax('board'), mT = groupMax('memory');
     const nv = sensorMeta.filter(x => (x.group === 'nvme' && /composite/.test(x.id)) || x.group === 'sata').map(x => cur.temp[x.id]).filter(v => v != null);
     const parts = []; if (gpuT != null && cpuT != null) parts.push(`GPU ${gpuT.toFixed(0)} °C`); if (nv.length) parts.push(`硬盘最高 ${Math.max(...nv).toFixed(0)} °C`); if (bT != null) parts.push(`主板 ${bT.toFixed(0)} °C`); if (mT != null) parts.push(`内存 ${mT.toFixed(0)} °C`); const fz = fanMeta.find(f => f.quality === 'reported' && !f.stale && f.duty != null); if (fz) parts.push(fz.rpm != null ? `风扇 ${fz.duty.toFixed(0)}% · ${fz.rpm} rpm` : `风扇 ${fz.duty.toFixed(0)}%`);
     const main = cpuT ?? gpuT ?? tmax(cur);
-    fill('temp', { label: cpuT != null ? 'CPU 温度' : gpuT != null ? 'GPU 温度' : '温度', hint: cur.gpuW != null ? `GPU ${cur.gpuW.toFixed(1)} W` : '',
+    fill('temp', { label: cpuT != null ? 'CPU 温度' : gpuT != null ? 'GPU 温度' : '温度', hint: cur.gpuW != null ? `${/APU/.test(powerLabel) ? 'APU 封装' : 'GPU'} ${cur.gpuW.toFixed(1)} W` : '',
       value: main != null ? main.toFixed(0) + ' °C' : '–', sub: parts.join(' · '), spark: x => x.temp['cpu.tctl'] ?? x.temp['cpu.package_id_0'] ?? x.temp['gpu.edge'] ?? tmax(x) }); }
-  { const n = netOf(cur); const ifs = iface === 'all' ? d.network : d.network.filter(x => x.interface_name === iface);
-    const rxT = ifs.reduce((a, x) => a + (x.bytes_recv_gauge || 0), 0), txT = ifs.reduce((a, x) => a + (x.bytes_sent_gauge || 0), 0);
+  { const n = netOf(cur), nic = iface === 'all' ? null : d.network.find(x => x.interface_name === iface);
+    const mbps = nic?.speed ? nic.speed / 1048576 : 0; // Glances reports psutil's Mbit/s multiplied by 2^20
+    const util = mbps ? Math.max(n.rx, n.tx) * 8 / (mbps * 1e6) * 100 : null;
+    const errs = Object.entries(cur.nerr).filter(([k]) => iface === 'all' || k === iface).map(([, v]) => v);
+    const sum = f => errs.length && errs.every(v => v[f] != null) ? errs.reduce((a, v) => a + v[f], 0) : null;
+    const perSec = v => v == null ? '–' : (v === 0 ? '0' : v < 10 ? v.toFixed(2) : v.toFixed(0)) + '/s';
+    const lines = [];
+    if (mbps) lines.push(`链路 ${mbps >= 1000 ? (mbps / 1000) + ' Gb/s' : mbps + ' Mb/s'} · 占用 ${util < 0.1 ? '<0.1%' : fmtPct(util)}`);
+    if (cur.retrans !== undefined) lines.push(`TCP 重传 ${cur.retrans == null ? '–' : cur.retrans.toFixed(2) + '%'} · 错误 ${perSec(sum('err'))} · 丢弃 ${perSec(sum('drop'))}`);
     fill('net', { label: '网络', hint: iface === 'all' ? '全部网卡' : iface, values: ['↓ ' + fmtRate(n.rx), '↑ ' + fmtRate(n.tx)],
-      sub: `开机以来 ↓ ${fmtBytes(rxT)} · ↑ ${fmtBytes(txT)}`, spark: x => netOf(x).rx + netOf(x).tx }); }
+      sub: lines.join('\n'), spark: x => netOf(x).rx + netOf(x).tx }); }
   { const io = diskOf(cur); const dk = d.diskio.find(x => x.disk_name === disk) || {};
+    const ms = v => v == null ? '–' : UNITS.ms.tip(v);
     fill('io', { label: '磁盘 IO', hint: disk, values: ['读 ' + fmtRate(io.r), '写 ' + fmtRate(io.w)],
-      sub: `IOPS 读 ${Math.round(dk.read_count_rate_per_sec || 0)} · 写 ${Math.round(dk.write_count_rate_per_sec || 0)}\n开机以来读 ${fmtBytes(dk.read_bytes_gauge)} · 写 ${fmtBytes(dk.write_bytes_gauge)}`, spark: x => diskOf(x).r + diskOf(x).w }); }
+      sub: `IOPS 读 ${Math.round(dk.read_count_rate_per_sec || 0)} · 写 ${Math.round(dk.write_count_rate_per_sec || 0)}\n延迟 读 ${ms(io.rl)} · 写 ${ms(io.wl)}`, spark: x => diskOf(x).r + diskOf(x).w }); }
   { const f0 = d.fs[0] || {};
     fill('fs', { label: '存储', hint: `${d.fs.length} 个分区`, value: fmtPct(f0.percent),
       sub: `${f0.mnt_point} 已用 ${fmtBytes(f0.used)} / ${fmtBytes(f0.size)}${d.fs[1] ? ` · ${d.fs[1].mnt_point} 剩 ${fmtBytes(d.fs[1].free)}` : ''}`,
       meters: d.fs.slice(0, 3).map(f => ({ k: f.mnt_point, pct: f.percent, text: fmtPct(f.percent) })) }); }
-  { const pc = d.processcount, ps = d.processlist;
-    const tc = ps.reduce((a, p) => p.cpu_percent > (a ? a.cpu_percent : -1) ? p : a, null), tm = ps.reduce((a, p) => p.memory_info.rss > (a ? a.memory_info.rss : -1) ? p : a, null);
-    fill('proc', { label: '进程', hint: `线程 ${pc.thread}`, value: String(pc.total),
-      sub: `运行 ${pc.running} · 休眠 ${pc.sleeping}` + (tc ? `\nCPU 最高 ${tc.name} ${fmtPct(tc.cpu_percent)}` : '') + (tm ? `\n内存最高 ${tm.name} ${fmtBytes(tm.memory_info.rss)}` : '') }); }
+  { const pc = d.processcount, sy = lastSys, failed = sy?.failed_units, oom = sy?.vm?.oom_kill, reboot = sy?.reboot_required;
+    const zombie = d.processlist.filter(p => p.status === 'Z').length, blocked = d.processlist.filter(p => p.status === 'D').length;
+    const issues = (failed?.length || 0) + (oom > 0 ? 1 : 0) + (reboot ? 1 : 0);
+    const units = failed?.map(u => u.unit.replace(/\.service$/, '') + (u.scope === 'user' ? '（用户）' : '')).join('、');
+    fill('health', { label: '系统健康', hint: 'systemd · 内核 · 进程', value: sy ? (issues ? `${issues} 项异常` : '正常') : '–',
+      sub: `进程 ${pc.total} · 线程 ${pc.thread}`,
+      checks: [
+        { k: '失败服务', text: failed == null ? '未采集' : failed.length ? `■ ${failed.length > 1 ? failed.length + ' 个 · ' : ''}${units}` : '● 无', cls: failed == null ? '' : failed.length ? 'serious' : 'good',
+          title: failed?.map(u => `${u.unit}（${u.scope === 'user' ? '用户' : '系统'}）${u.description}`).join('\n') },
+        { k: 'OOM 终止', text: oom == null ? '未采集' : oom > 0 ? `▲ 开机以来 ${oom} 次` : '● 无', cls: oom == null ? '' : oom > 0 ? 'warn' : 'good' },
+        { k: '待重启', text: reboot == null ? '未采集' : reboot ? '▲ 系统更新要求重启' : '● 否', cls: reboot == null ? '' : reboot ? 'warn' : 'good' },
+        { k: '进程状态', text: `僵尸 ${zombie} · 不可中断 ${blocked}`, title: '僵尸：已退出但未被父进程回收；不可中断(D)：通常在等待磁盘或网络存储' },
+      ] }); }
   // charts
-  cpuChart.update(win); memChart.update(win); netChart.update(win); ioChart.update(win); loadChart.update(win);
+  cpuChart.update(win); pressureChart.update(win); memChart.update(win); netChart.update(win); ioChart.update(win); latChart.update(win);
   { const pc = d.percpu.map(c => c.total); if (!pc.every(v => v >= 99.9)) coreChart.update(pc); }
   ensureTempCharts();
   for (const c of tempCharts) c.update(win);
@@ -842,16 +916,17 @@ function render() {
 }
 
 function renderTop(d) {
-  const ps = d.processlist;
+  // Per program (same-name processes summed): the per-PID view is the process table below.
+  const ps = d.programlist || [], rss = p => p.memory_info?.rss ?? 0;
   const cpu = [...ps].sort((a, b) => b.cpu_percent - a.cpu_percent).slice(0, 8);
-  const mem = [...ps].sort((a, b) => b.memory_info.rss - a.memory_info.rss).slice(0, 8);
+  const mem = [...ps].sort((a, b) => rss(b) - rss(a)).slice(0, 8);
   bars(document.getElementById('topcpu'), cpu, p => p.cpu_percent, fmtPct);
-  bars(document.getElementById('topmem'), mem, p => p.memory_info.rss, fmtBytes);
+  bars(document.getElementById('topmem'), mem, rss, fmtBytes);
   function bars(el, list, get, fmt) {
     const mx = Math.max(...list.map(get), 1e-9); el.textContent = '';
     for (const p of list) {
-      const r = document.createElement('div'); r.className = 'row'; r.title = (p.cmdline || []).join(' ') || p.name;
-      const nm = document.createElement('div'); nm.className = 'n'; nm.textContent = `${p.name} (${p.pid})`;
+      const r = document.createElement('div'); r.className = 'row'; r.title = `${p.name} · ${p.nprocs ?? 1} 个进程`;
+      const nm = document.createElement('div'); nm.className = 'n'; nm.textContent = p.nprocs > 1 ? `${p.name} ×${p.nprocs}` : p.name;
       const b = document.createElement('div'); b.className = 'b'; const i = document.createElement('i'); i.style.width = (get(p) / mx * 100) + '%'; b.appendChild(i);
       const v = document.createElement('div'); v.className = 'v'; v.textContent = fmt(get(p));
       r.append(nm, b, v); el.appendChild(r);
@@ -904,10 +979,12 @@ async function poll() {
     const [d, sj] = await Promise.all([getJSON(apiURL(h)), getJSON(sensorsURL(h)).catch(() => null)]);
     if (generation !== hostGeneration) return;
     const sens = Array.isArray(sj?.sensors) ? sj.sensors : null;
+    lastSys = sj?.system || null;
     renderStorage(sj ? sj.storage : null);
     if (sens) {
       const gn = d.gpu?.[0]?.name;
       if (gn) for (const x of sens) if (x.device_id === 'gpu') x.device = 'GPU · ' + gn;
+      powerLabel = sens.find(x => x.unit === 'W')?.label || '';
       const previous = new Map(sensorMeta.map(x => [x.id,x]));
       sensorMeta = sens.filter(x => x.unit !== 'W').flatMap(x => {
         const old = previous.get(x.id); previous.delete(x.id);
@@ -921,10 +998,11 @@ async function poll() {
     document.getElementById('sensorStatus').textContent = sens ? (sensorMeta.some(x => x.group === 'board' && x.value != null) ? '主板测点通道已发现，位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
     if (sens && sensorMeta.some(x => x.quality === 'unavailable')) document.getElementById('sensorStatus').textContent += ' · 部分传感器未更新';
     last = d;
-    hist.push(toSample(d, sens)); while (hist.length > MAX_POINTS) hist.shift();
-    const ifs = d.network.map(n => n.interface_name); if (!iface) iface = d.network.slice().sort((a, b) => b.bytes_all_gauge - a.bytes_all_gauge)[0]?.interface_name || 'all';
+    hist.push(toSample(d, sens, lastSys)); while (hist.length > MAX_POINTS) hist.shift();
+    const nics = d.network.filter(n => realIface(n.interface_name)), ifs = nics.map(n => n.interface_name);
+    if (!iface) iface = nics.slice().sort((a, b) => b.bytes_all_gauge - a.bytes_all_gauge)[0]?.interface_name || 'all';
     fillSelect(document.getElementById('iface'), ifs, iface, '全部（合计）');
-    const dks = d.diskio.map(n => n.disk_name); if (!disk) disk = dks[0];
+    const dks = d.diskio.map(n => n.disk_name).filter(wholeDisk); if (!disk) disk = dks[0];
     fillSelect(document.getElementById('disk'), dks, disk);
     if (powerConfig && !powerConfig.remote && !powerLoading && !powerBusy && powerModal.hidden) refreshPower();
     dot.classList.remove('off'); page.classList.remove('stale'); statEl.textContent = '更新于 ' + fmtTime(Date.now());
@@ -1003,15 +1081,15 @@ function switchHost(h) {
   hostGeneration++; clearTimeout(pollTimer); pollController?.abort();
   current = h; writeSetting('host_sel', hostKey(h)); markFleet();
   diskTempSelection = null; diskTempMode = 'multiple';
-  hist.length = 0; last = null; iface = null; disk = null; sensorMeta = []; sensorKey = ''; for (const c of fanCharts) { c.observer.disconnect(); c.card.remove(); } fanCharts.length = 0; fanMeta = []; fanKey = '';
+  hist.length = 0; last = null; lastSys = null; powerLabel = ''; iface = null; disk = null; sensorMeta = []; sensorKey = ''; for (const c of fanCharts) { c.observer.disconnect(); c.card.remove(); } fanCharts.length = 0; fanMeta = []; fanKey = '';
   renderStorage({enabled:false});
   document.getElementById('hostname').textContent = h.name; document.getElementById('sysmeta').textContent = h.addr;
   statEl.textContent = '连接中…'; dot.classList.add('off'); page.classList.remove('stale');
   for (const c of tempCharts) { c.observer.disconnect(); c.card.remove(); } tempCharts.length = 0;
-  for (const c of [cpuChart, memChart, netChart, ioChart, loadChart]) { c.hover = null; c.update([]); c.table.textContent = ''; }
+  for (const c of [cpuChart, pressureChart, memChart, netChart, ioChart, latChart]) { c.hover = null; c.update([]); c.table.textContent = ''; }
   coreChart.hover = null; coreChart.update([]); coreChart.table.textContent = ''; hideTip();
   for (const id of ['iface', 'disk', 'tbody', 'pbody', 'topcpu', 'topmem', 'pcount']) document.getElementById(id).textContent = '';
-  const labels = ['CPU', '内存', '负载', '温度', '网络', '磁盘 IO', '存储', '进程'];
+  const labels = ['CPU', '内存', '资源压力', '温度', '网络', '磁盘 IO', '存储', '系统健康'];
   TILES.forEach((id, i) => fill(id, { label: labels[i], value: '–', sub: '等待所选主机数据…' }));
   refreshPower();
   poll();
