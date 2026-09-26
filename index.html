@@ -909,15 +909,16 @@ async function poll() {
       const gn = d.gpu?.[0]?.name;
       if (gn) for (const x of sens) if (x.device_id === 'gpu') x.device = 'GPU · ' + gn;
       const previous = new Map(sensorMeta.map(x => [x.id,x]));
-      sensorMeta = sens.filter(x => x.unit !== 'W').map(x => {
+      sensorMeta = sens.filter(x => x.unit !== 'W').flatMap(x => {
         const old = previous.get(x.id); previous.delete(x.id);
-        return x.value == null && old ? {...x,value:old.value,sampled_at:old.sampled_at,stale:true} : x;
+        if (x.value == null) return old ? [{...x,value:old.value,sampled_at:old.sampled_at,stale:true}] : [];
+        return [x];
       });
     } else sensorMeta = sensorMeta.map(x => ({...x, stale:true}));
     const fansJ = Array.isArray(sj?.fans) ? sj.fans : null;
     if (fansJ) { const prevF = new Map(fanMeta.map(f => [f.id, f])); fanMeta = fansJ.map(f => { const old = prevF.get(f.id); return f.duty == null && old ? {...old, quality:f.quality, note:f.note || old.note, stale:true} : f; }); }
     else fanMeta = fanMeta.map(f => ({...f, stale:true}));
-    document.getElementById('sensorStatus').textContent = sens ? (sens.some(x => x.group === 'board') ? '主板测点通道已发现，位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
+    document.getElementById('sensorStatus').textContent = sens ? (sensorMeta.some(x => x.group === 'board' && x.value != null) ? '主板测点通道已发现，位置未核实' : '未发现已识别的独立主板测点') : '传感器采集失败 · 上次读数未更新';
     if (sens && sensorMeta.some(x => x.quality === 'unavailable')) document.getElementById('sensorStatus').textContent += ' · 部分传感器未更新';
     last = d;
     hist.push(toSample(d, sens)); while (hist.length > MAX_POINTS) hist.shift();

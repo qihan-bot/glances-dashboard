@@ -141,7 +141,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return None
         dashboard_url = os.environ.get('MONITOR_DASHBOARD_URL')
-        if path == '/' and dashboard_url:
+        if path == '/' and dashboard_url and not self._redirects_to_self(dashboard_url):
             self.send_response(302)
             self.send_header('Location', dashboard_url)
             self.send_header('Cache-Control', 'no-store')
@@ -149,6 +149,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             return None
         return super().send_head()
+
+    def _redirects_to_self(self, dashboard_url):
+        target = urlsplit(dashboard_url)
+        host = (self.headers.get('Host') or '').lower()
+        return (target.scheme or 'http') == 'http' and target.netloc.lower() == host and target.path in ('', '/') and not target.query and not target.fragment
 
     def list_directory(self, path):
         self.send_error(404)

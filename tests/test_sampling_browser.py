@@ -17,6 +17,7 @@ class SamplingBrowserTests(unittest.IsolatedAsyncioTestCase):
                 errors = []; page.on('pageerror', lambda e: errors.append(str(e)))
                 fail = False
                 sensors = [dict(id='cpu.tctl', device_id='cpu', device='CPU', group='core', label='Tctl', value=91, quality='reported', warn=None, crit=None),
+                           dict(id='ec.0x04', device_id='ec', device='EC', group='board', label='采样失败标签', value=None, quality='unavailable', warn=None, crit=None),
                            dict(id='acpitz.zone0.temp1', device_id='acpitz.zone0', device='ACPI · 固件热区（未核实）', group='diagnostic', label='温度', value=20, quality='unverified', warn=None, crit=None)]
                 async def route(r):
                     url = r.request.url
@@ -37,6 +38,8 @@ class SamplingBrowserTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn('20.0 °C', await page.locator('#tbody').inner_text())
                 self.assertIn('未核实 · 不绘图', await page.locator('#tbody').inner_text())
                 self.assertNotIn('ACPI', await page.evaluate("tempCharts.map(c=>c.legend.textContent).join()"))
+                self.assertNotIn('采样失败标签', await page.locator('#tbody').inner_text())
+                self.assertNotIn('采样失败标签', await page.evaluate("tempCharts.map(c=>c.legend.textContent).join()"))
                 fail = True; await page.evaluate('poll()')
                 self.assertEqual(await page.evaluate('hist.at(-1).temp'), {})
                 self.assertIn('未更新', await page.locator('#sensorStatus').inner_text())

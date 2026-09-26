@@ -25,9 +25,9 @@ class ServerTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join()
 
-    def request(self, method, path):
+    def request(self, method, path, headers=None):
         conn = HTTPConnection(*self.server.server_address)
-        conn.request(method, path)
+        conn.request(method, path, headers=headers or {})
         response = conn.getresponse()
         status, headers, body = response.status, dict(response.getheaders()), response.read()
         conn.close()
@@ -64,6 +64,16 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertNotIn('Location', headers)
             self.assertEqual(self.request('GET', '/%2egit/config')[0], 404)
+
+    def test_dashboard_self_redirect_is_ignored(self):
+        host = f'{self.server.server_address[0]}:{self.server.server_address[1]}'
+        with patch.dict(os.environ, MONITOR_DASHBOARD_URL=f'http://{host}/'):
+            for method in ('GET', 'HEAD'):
+                status, headers, body = self.request(method, '/', headers={'Host': host})
+                self.assertEqual(status, 200)
+                self.assertNotIn('Location', headers)
+                if method == 'HEAD':
+                    self.assertEqual(body, b'')
 
 
 if __name__ == '__main__':
